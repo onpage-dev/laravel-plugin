@@ -21,6 +21,8 @@ class OnPagePackageServiceProvider extends ServiceProvider
             __DIR__.'/../config/onpage.php' => config_path('onpage.php'),
         ]);
 
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 Import::class,
