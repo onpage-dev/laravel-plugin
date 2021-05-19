@@ -11,6 +11,6 @@ class Field extends Model
         return $this->hasMany(Value::class, 'thing_id');
     }
     public function things() {
-        return $this->hasManyThrough(Thing::class, Value::class);
+        return $this->hasOneThrough(Thing::class, Value::class);
     }
 }

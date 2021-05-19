@@ -17,7 +17,11 @@ class CreateFieldsTable extends Migration
             $table->id();
             $table->unsignedBigInteger('resource_id');
             $table->foreign('resource_id')->references('id')->on('resources')->onDelete('cascade');
-            $table->string('label');
+            $table->text('name');
+            $table->text('type');
+            $table->text('label');
+            $table->boolean('is_multiple');
+            $table->boolean('is_translatable');
         });
     }
 

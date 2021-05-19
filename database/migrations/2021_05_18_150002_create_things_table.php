@@ -17,7 +17,6 @@ class CreateThingsTable extends Migration
             $table->id();
             $table->unsignedBigInteger('resource_id');
             $table->foreign('resource_id')->references('id')->on('resources')->onDelete('cascade');
-            //$table->string('label');
         });
     }
 

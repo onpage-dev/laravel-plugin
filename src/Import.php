@@ -43,96 +43,116 @@ class Import extends Command
         $info = \json_decode(\file_get_contents($url));
         $fileurl = "https://lithos.onpage.it/api/storage/$info->token";
         $snapshot = json_decode(\file_get_contents($fileurl));
-        // print_r($snapshot);
         echo "$fileurl\n\n";
-        print_r( "LABEL:" . $snapshot->label . "\n");
+        
         $schema_id=$snapshot->id;
-        print_r("SCHEMA_ID:" . $schema_id . "\n");
+        print_r("ID:" . $schema_id . "\n");
+        print_r( "LABEL:" . $snapshot->label . "\n");
+        echo "**************************************\n";
+        echo "Importando Raccolte...\n";
         
         $resources=collect($snapshot->resources);
-        print_r( "Numero RESOURCES:" . $resources->count() . "\n");
         $resources_op = $resources->map(function ($resource) {
             return collect($resource)
                 ->only(['id', 'label', 'schema_id'])
                 ->all();
         });
+        Models\Resource::insert($resources_op->all());
+        echo "Raccolte importate:" . $resources_op->count() . ".\n";
+        print_r($resources_op->pluck('label') . "\n");
+        echo "**************************************\n";
+        echo "Importando Campi...\n";
         //print_r($resources_op);
         //print_r("IDS RESOURCES:" . $resources_op->pluck('id') . "\n");
-        //print_r( "LABELS:" . $resources_op->pluck('label') . "\n");
+        
         
         $fields=$resources->pluck('fields')->collapse();
-        print_r( "Numero FIELDS:" . $fields->count() . "\n");
         $fields_op = $fields->map(function ($field) {
             return collect($field)
-                ->only(['id', 'label', 'resource_id'])
+                ->only(['id','name','resource_id','type','is_multiple','is_translatable', 'label'])
                 ->all();
         });
-        //print_r($fields_op);
-        //print_r("IDS FIELDS:" . $fields_op->pluck('id') . "\n");
-        //print_r( "LABELS:" . $fields_op->pluck('label') . "\n");
+        Models\Field::insert($fields_op->all());
+        echo "Campi importati:". $fields_op->count() . ".\n";
+        echo "**************************************\n";
+        echo "Importando Things...\n";
 
         $things=$resources->pluck('data')->collapse();
-        print_r( "Numero THINGS:" . $things->count() . "\n");
         $things_op = $things->map(function ($thing) {
             return collect($thing)
-                ->only(['id', 'label', 'resource_id'])
+                ->only(['id', 'resource_id'])
                 ->all();
         });
-        //print_r($things_op);
-        //print_r("THING FIELDS:" . $things_op->pluck('id') . "\n");
-        //print_r( "LABELS:" . $things_op->pluck('label') . "\n");
+        Models\Thing::insert($things_op->all());
+        echo "Things importate:" . $things_op->count() . ".\n";
+        echo "**************************************\n";
+        echo "Importando Valori...\n";
+        echo "Potrebbe impiegare diversi minuti...\n";
 
-        //$values=$things->pluck('fields');
-        //print_r($values);
-
-        $values = $things->map(function ($value) {
+        $thing_values = $things->map(function ($value) {
             return collect($value)
                 ->only(['id','fields']);
         })
         ->pluck('fields','id');
-
-        /* $values_op= $values->map(function ($value) {
-            return collect($value)
-                ->only(['id','fields'])
-                ->all();
-        }); */
-
-        $values_op=collect([]);        
-        $keys=$values->keys();
-
+       
+        $keys=$thing_values->keys();
+        
         foreach($keys as $key) {
             //print_r("KEYS:");
-            $subvalues=collect($values[$key]);
-            $field_keys=$subvalues->keys();
+            $field_values=collect($thing_values[$key]);
+            $field_keys=$field_values->keys();
             foreach($field_keys as $field_key) {
-/*                 echo "valueskey:";
-                print_r($subvalues);
-                echo "metavalue:";
-                print_r($subvalues[$field_key]);
-                echo "\n field_id:";
-                print_r($field_key);
-                echo "\n thing_id:";
-                print_r($key);
-                echo "\n\n"; */
-                $metavalue=json_encode($subvalues[$field_key]);
-                echo "\n";
-                $values_op->push( ["field_id" => $field_key, "thing_id" => $key , "metavalue" => $metavalue]);
+
+                $parts = explode('_', $field_key); // ['1234', 'en'] oppure ['1234']
+                $field_id = $parts[0]; // 1234
+                $lang = @$parts[1]; // 'it' oppure null
+
+                $values=$field_values[$field_key];
+                $field = Models\Field::find($field_id);
+                if (!$field->is_multiple) {
+                    $values = [$values];
+                }
+                foreach ($values as $value) {
+                    // value can be SCALAR, FILE, DIM2, DIM3
+                    $data = null;
+                    switch ($field->type) {
+                        case 'file':
+                        case 'image':
+                            $data = [
+                                'value_txt' => $value->name,
+                                'value_token' => $value->token,
+                            ];
+                            break;
+                        case 'dim2':
+                        case 'dim3':
+                            $data = [
+                                'value_real0' => @$value[0],
+                                'value_real1' => @$value[1],
+                                'value_real2' => @$value[2],
+                            ];
+                            break;
+                        case 'int':
+                        case 'real':
+                            $data = [
+                                'value_real0' => $value,
+                            ];
+                            break;
+                        default:
+                            $data = [
+                                'value_txt' => $value,
+                            ];
+                    }
+                    Models\Value::create([
+                        'thing_id' => $key,
+                        'field_id' => $field_id,
+                        'lang' => $lang,
+                    ] + $data);
+                }
+            }
         }
-    }
-        //print_r($values_op); 
-        print_r("Numero VALUES:" . $values_op->count() . "\n");
-        echo "**************************************\n";
-        echo "**************************************\n";
-        echo "**************************************\n";
-        Models\Resource::insert($resources_op->all());
-        echo "Risorse inserite nel database\n";
-        Models\Field::insert($fields_op->all());
-        echo "Campi inseriti nel database\n";
-        Models\Thing::insert($things_op->all());
-        echo "Things inserite nel database\n";
-        echo "quasi\n";
-        Models\Value::insert($values_op->all());
-        echo "Valori inseriti nel database\n";
-        //print_r($values_op->all());
+
+    $ivalues=Models\Value::all()->count();
+    echo "Valori importati:" . $ivalues . ".\n";
+    echo "**************************************\n";
     }
 }

@@ -19,7 +19,12 @@ class CreateValuesTable extends Migration
             $table->unsignedBigInteger('field_id');
             $table->foreign('thing_id')->references('id')->on('things')->onDelete('cascade');
             $table->foreign('field_id')->references('id')->on('fields')->onDelete('cascade');
-            $table->text('metavalue');
+            $table->text('lang')->nullable();
+            $table->text('value_txt')->nullable();
+            $table->text('value_token')->nullable();
+            $table->double('value_real0')->nullable();
+            $table->double('value_real1')->nullable();
+            $table->double('value_real2')->nullable();
         });
     }
 
