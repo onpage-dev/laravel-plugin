@@ -13,4 +13,7 @@ class Field extends Model
     public function things() {
         return $this->hasOneThrough(Thing::class, Value::class);
     }
+    public function rel_res() {
+        return $this->belongsTo(Resource::class, 'rel_res_id');
+    }
 }

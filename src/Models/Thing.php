@@ -12,22 +12,22 @@ class Thing extends Model
         return $this->hasMany(Value::class, 'thing_id');
     }
     public function fields() {
-        return $this->hasManyThrough(Field::class, Value::class);
+        return $this->belongsToMany(Field::class, Value::class);
     }
+    public function relations() {
+        return $this->hasMany(Relation::class, 'thing_from_id');
+    }
+    public function relatives() {
+        return $this->belongsToMany(Thing::class, Relation::class,'thing_from_id','thing_to_id');
+    }
+
     public function val(string $field_name, string $lang = null) {
-        $field = Field::where('name', $field_name)->first();
+        $field = $this->resource->fields()->where('name', $field_name)->first();
         if (!$field) return null;
         $values = $this->values()
             ->where('field_id', $field->id)
             ->where('lang', $lang)
             ->get();
-        // [
-        //     Value {
-        //         ...
-        //         value_txt: 'description'
-        //         lang: 'fr'
-        //     }
-        // ]
         $ret = [];
         foreach ($values as $value) {
             switch ($field->type) {

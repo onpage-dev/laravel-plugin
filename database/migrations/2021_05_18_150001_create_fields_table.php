@@ -22,6 +22,7 @@ class CreateFieldsTable extends Migration
             $table->text('label');
             $table->boolean('is_multiple');
             $table->boolean('is_translatable');
+            $table->unsignedBigInteger('rel_res_id')->nullable();
         });
     }
 

@@ -17,6 +17,8 @@ class CreateResourcesTable extends Migration
             $table->id();
             $table->integer('schema_id');
             $table->string('label');
+            $table->string('name');
+
         });
     }
 
@@ -27,6 +29,6 @@ class CreateResourcesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('cars');
+        Schema::dropIfExists('resources');
     }
 }
