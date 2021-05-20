@@ -12,13 +12,39 @@ class Thing extends Model
         return $this->hasMany(Value::class, 'thing_id');
     }
     public function fields() {
-        return $this->belongsToMany(Field::class, Value::class);
+        return $this->belongsToMany(Field::class, Value::class , 'thing_id');
     }
     public function relations() {
         return $this->hasMany(Relation::class, 'thing_from_id');
     }
     public function relatives() {
         return $this->belongsToMany(Thing::class, Relation::class,'thing_from_id','thing_to_id');
+    }
+
+    
+    public function getResource() {
+        return $this->resource->name;
+    }
+    public function getFields() {
+        return $this->fields->pluck('name')->all();
+    }
+    public function getAllFields() {
+        return $this->resource->fields->pluck('name')->all();
+    }
+    public function getValues() {
+        $values=collect([]);
+        $fields=$this->fields;
+        foreach($fields as $f) {
+            $n=$f->name;
+            $v=$this->val($n);
+            $values->put($n,$v);
+        }
+        return $values->all();
+    }
+    public function getName() {
+        $fields=$this->fields;
+        $f=$fields->where('type','string')->first();
+        return $this->val($f->name);
     }
 
     public function val(string $field_name, string $lang = null) {

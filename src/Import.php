@@ -43,9 +43,9 @@ class Import extends Command
         $info = \json_decode(\file_get_contents($url));
         $fileurl = "https://lithos.onpage.it/api/storage/$info->token";
         $snapshot = json_decode(\file_get_contents($fileurl));
-        echo "$fileurl\n\n";
+        echo "$fileurl\n";
         $schema_id=$snapshot->id;
-        print_r( "LABEL:" . $snapshot->label ." ID:" . $schema_id);
+        print_r( "Name:" . $snapshot->label ." Id:" . $schema_id . " ");
         $resources=collect($snapshot->resources);
         $resources_op = $resources->map(function ($resource) {
             return collect($resource)
@@ -53,7 +53,7 @@ class Import extends Command
                 ->all();
         });
         Models\Resource::upsert($resources_op->all(), 'id');
-        echo "\n\nResources:";
+        echo "Resources:";
         echo $resources_op->pluck('name');
 
         echo "\n\nFields\n";
@@ -196,21 +196,17 @@ class Import extends Command
             }
             Models\Value::whereIn('thing_id',$chunk)->delete();
             Models\Value::insert($values_op->all());
-            
         }
-        
         $bar->finish();
+        
         $this->comment("\n\nGenerating models...");
-
         $bar = $this->output->createProgressBar(count($resources_op));    
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        
         foreach($resources as $resource) {
             op_gen_model($resource);
             $bar->advance();
         }
-
         $bar->finish();
         echo "\n";
     }
@@ -223,34 +219,29 @@ function op_gen_model(object $res) {
     //$extends_lc = strtolower($extends);
   
     $code = "<?php\nnamespace OnPage\\Models; \n";
-    $code.= "class $camel_name extends \\OnPage\\Resource {\n";
+    $code.= "class $camel_name extends Thing {\n";
+    $code.= "  protected \$table = 'things'; \n";
     $code.= "  public static function boot() {
       parent::boot();
-      self::addGlobalScope('opres', function(\$q) {
-        \$q->whereRes($res->id);
+      self::addGlobalScope('resource', function(\$q) {
+        \$q->whereResource_id($res->id);
       });
-      self::addGlobalScope('oplang', function(\$q) {
+    }\n";
+/*       self::addGlobalScope('oplang', function(\$q) {
         \$q->localized();
       });
       self::addGlobalScope('opmeta', function(\$q) {
         \$q->loaded();
-      });
-    }\n";
-    $code.= "  public static function getResource() {
-      return op_schema()->name_to_res['{$res->name}'];
-    }\n";
-  
+      }); */
+      
     foreach ($res->fields as $f) {
       if ($f->type == 'relation') {
         //$rel_method = $f->rel_res->is_product ? 'posts' : 'terms';
-
         $rel_class=Models\Resource::find($f->rel_res_id)->name;
-        //$rel_class = op_snake_to_camel($f->rel_res->name);
+        $rel_class = op_snake_to_camel($rel_class);
         //$rel_class_primary = $f->rel_res->is_product ? 'ID' : 'term_id';
         $code.= "  function $f->name() {\n";
-        $code.= "    return \$this->belongsToMany($rel_class::class, \\OnPage\\Meta::class, 'id', 'meta_value', null)\n";
-        $code.= "    ->wherePivot('meta_key', 'oprel_$f->name')\n";
-        $code.= "    ->orderBy('meta_id');\n";
+        $code.= "    return \$this->belongsToMany($rel_class::class, Relation::class,'thing_from_id','thing_to_id');\n";
         $code.= "  }\n";
       }
     }

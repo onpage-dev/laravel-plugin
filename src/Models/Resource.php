@@ -13,6 +13,9 @@ class Resource extends Model
     public function values() {
         return $this->hasManyThrough(Value::class, Thing::class);
     }
+    public function name() {
+        return $this->name;
+    }
 }
 
 
