@@ -218,8 +218,8 @@ function op_gen_model(object $res) {
     //$extends = $res->is_product ? 'Post' : 'Term';
     //$extends_lc = strtolower($extends);
   
-    $code = "<?php\nnamespace OnPage\\Models; \n";
-    $code.= "class $camel_name extends Thing {\n";
+    $code = "<?php\nnamespace OnPage\\Op; \n";
+    $code.= "class $camel_name extends \OnPage\Models\Thing {\n";
     $code.= "  protected \$table = 'things'; \n";
     $code.= "  public static function boot() {
       parent::boot();
@@ -241,12 +241,12 @@ function op_gen_model(object $res) {
         $rel_class = op_snake_to_camel($rel_class);
         //$rel_class_primary = $f->rel_res->is_product ? 'ID' : 'term_id';
         $code.= "  function $f->name() {\n";
-        $code.= "    return \$this->belongsToMany($rel_class::class, Relation::class,'thing_from_id','thing_to_id');\n";
+        $code.= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id');\n";
         $code.= "  }\n";
       }
     }
     $code.= "}\n";
-    $file = __DIR__."/../src/Models/$camel_name.php";
+    $file = __DIR__."/../src/Op/$camel_name.php";
     file_put_contents($file, $code);
     
   }
