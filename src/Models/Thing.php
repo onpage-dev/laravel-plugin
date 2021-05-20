@@ -3,7 +3,7 @@
 namespace OnPage\Models;
 
 
-class Thing extends Model
+class Thing extends OpModel
 {
     public function resource() {
         return $this->belongsTo(Resource::class, 'resource_id', 'id');

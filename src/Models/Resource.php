@@ -2,7 +2,7 @@
 
 namespace OnPage\Models;
 
-class Resource extends Model
+class Resource extends OpModel
 {
     public function things() {
         return $this->hasMany(Thing::class, 'resource_id');
