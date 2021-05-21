@@ -18,17 +18,7 @@ class Import extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
-
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
+    protected $description = 'Import data from On Page';
 
     /**
      * Execute the console command.
@@ -38,46 +28,96 @@ class Import extends Command
     public function handle()
     {
         $this->comment('Importing data from snapshot...');
+        $company = env('ONPAGE_COMPANY');
         $token = env('ONPAGE_TOKEN');
-        $url = "https://lithos.onpage.it/api/view/$token/dist";
+        $url = "https://$company.onpage.it/api/view/$token/dist";
         $info = \json_decode(\file_get_contents($url));
-        $fileurl = "https://lithos.onpage.it/api/storage/$info->token";
+        $fileurl = "https://$company.onpage.it/api/storage/$info->token";
+        echo $fileurl . "\n";
         $snapshot = json_decode(\file_get_contents($fileurl));
-        echo "$fileurl\n";
         $schema_id=$snapshot->id;
         print_r( "Name:" . $snapshot->label ." Id:" . $schema_id . " ");
+        
         $resources=collect($snapshot->resources);
         $resources_op = $resources->map(function ($resource) {
             return collect($resource)
-                ->only(['id', 'name','label', 'schema_id'])
+                ->only([
+                    'id',
+                    'name',
+                    'label',
+                    'schema_id',
+                    'to_delete'])
+                ->put('to_delete',false)
                 ->all();
-        });
+        
+            });
+        Models\Resource::where('to_delete',false)
+        ->update([
+         'to_delete' => true
+        ]);
         Models\Resource::upsert($resources_op->all(), 'id');
+        
         echo "Resources:";
         echo $resources_op->pluck('name');
+        Models\Resource::where('to_delete', true)->delete();
 
         echo "\n\nFields\n";
 
         $fields=$resources->pluck('fields')->collapse();
         $fields_op = $fields->map(function ($field) {
             return collect($field)
-                ->only(['id','name','resource_id','type','is_multiple','is_translatable', 'label', 'rel_res_id'])
+                ->only([
+                'id',
+                'name',
+                'resource_id',
+                'type',
+                'is_multiple',
+                'is_translatable',
+                'label',
+                'rel_res_id',
+                'to_delete'
+                ])
+                ->put('to_delete',false)
                 ->all();
         });
+        Models\Field::where('to_delete',false)
+        ->update([
+         'to_delete' => true
+        ]);
         $bar = $this->output->createProgressBar(count($fields_op));    
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();  
-        Models\Field::upsert($fields_op->all(), 'id');
-        $bar->finish();
-        //echo "Campi importati:". $fields_op->count() . ".\n";
 
-        echo "\n\nThings\n";
+        Models\Field::upsert($fields_op->all(), 'id');
+        $fields_deleted=Models\Field::where('to_delete', true);
+        $fields_deleted_count=$fields_deleted->count();
+        $fields_deleted->delete();
+        $bar->finish();
+        echo "\n";
+        echo "Old fields deleted:" . $fields_deleted_count . "\n";
+        echo "New fields added:" . $fields_op->count() . ".\n"; 
+
+
+
+
+
+
+
+
+
+        echo "\nThings\n";
         $things=$resources->pluck('data')->collapse();
         $things_op = $things->map(function ($thing) {
             return collect($thing)
                 ->only(['id', 'resource_id'])
+                ->put('to_delete',false)
                 ->all();
         });
+
+        Models\Thing::where('to_delete',false)
+        ->update([
+         'to_delete' => true
+        ]);
 
         $chunks=array_chunk($things_op->all() ,1000);
 
@@ -85,13 +125,31 @@ class Import extends Command
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();  
 
+
         foreach($chunks as $chunk_i => $chunk) {
             Models\Thing::upsert($chunk, 'id');
         }
+        $things_deleted=Models\Thing::where('to_delete', true);
+        $things_deleted_count=$things_deleted->count();
+        $things_deleted->delete();
         $bar->finish();
-        //echo "Things importate:" . $things_op->count() . ".\n"; 
+        echo "\n";
+        echo "Old things deleted:" . $things_deleted_count . "\n";
+        echo "New things added:" . $things_op->count() . ".\n"; 
 
-        echo "\n\nRelations\n";
+
+
+
+
+
+
+
+
+
+
+
+
+        echo "\nRelations\n";
         $things_relations = $things->map(function ($value) {
             return collect($value)
                 ->only(['id','rel_ids']);
@@ -123,6 +181,8 @@ class Import extends Command
             Models\Relation::insert($relations_op->all());
         }
         $bar->finish();
+
+        
 
         echo "\n\nValues\n";
         $things_fields = $things->map(function ($value) {
@@ -195,7 +255,9 @@ class Import extends Command
                 }
             }
             Models\Value::whereIn('thing_id',$chunk)->delete();
-            Models\Value::insert($values_op->all());
+            foreach (array_chunk($values_op->all(), 500) as $insert_chunk) {
+                Models\Value::insert($insert_chunk);
+            }
         }
         $bar->finish();
         
@@ -208,7 +270,9 @@ class Import extends Command
             $bar->advance();
         }
         $bar->finish();
-        echo "\n";
+        echo "\n";  
+
+        Models\Resource::cacheResources();
     }
 }
 
