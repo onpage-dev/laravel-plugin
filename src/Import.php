@@ -3,6 +3,7 @@
 namespace OnPage;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 class Import extends Command
 {
@@ -11,7 +12,8 @@ class Import extends Command
      *
      * @var string
      */
-    protected $signature = 'onpage:import';
+    protected $signature = 'onpage:import {snapshot_file?} {--force}';
+    protected $danger = false;
 
     /**
      * The console command description.
@@ -27,46 +29,47 @@ class Import extends Command
      */
     public function handle()
     {
+        $snapshot_file = $this->argument('snapshot_file');
         $this->comment('Importing data from snapshot...');
-        $company = env('ONPAGE_COMPANY');
-        $token = env('ONPAGE_TOKEN');
-        $url = "https://$company.onpage.it/api/view/$token/dist";
-        $info = \json_decode(\file_get_contents($url));
-        $fileurl = "https://$company.onpage.it/api/storage/$info->token";
-        echo $fileurl . "\n";
-        $snapshot = json_decode(\file_get_contents($fileurl));
-        $schema_id=$snapshot->id;
-        print_r( "Name:" . $snapshot->label ." Id:" . $schema_id . " ");
-        
-        $resources=collect($snapshot->resources);
-        $resources_op = $resources->map(function ($resource) {
-            return collect($resource)
-                ->only([
-                    'id',
-                    'name',
-                    'label',
-                    'schema_id',
-                    'to_delete'])
-                ->put('to_delete',false)
-                ->all();
-        
-            });
-        Models\Resource::where('to_delete',false)
-        ->update([
-         'to_delete' => true
-        ]);
-        Models\Resource::upsert($resources_op->all(), 'id');
-        
-        echo "Resources:";
-        echo $resources_op->pluck('name');
-        Models\Resource::where('to_delete', true)->delete();
+        if(!$snapshot_file) {        
+            $company = env('ONPAGE_COMPANY');
+            $token = env('ONPAGE_TOKEN');
+            $url = "https://$company.onpage.it/api/view/$token/dist";
+            $info = \json_decode(\file_get_contents($url));
+            $fileurl = "https://$company.onpage.it/api/storage/$info->token";
+            echo $fileurl . "\n";
+            $json=\file_get_contents($fileurl);
+            $snapshot = json_decode($json);
+            $filename="snapshots/" . date("Y_m_d_His") . "_snapshot.json";
+            Storage::disk('local')->put($filename,$json);
+            $schema_id=$snapshot->id;
+            print_r( "Label:" . $snapshot->label ."\n");
+            echo("Id:" . $schema_id . "\n");
+            echo("Snapshot saved at " . "storage/app/" . $filename . "\n\n");
+        } else {
+            $snapshot=\json_decode(Storage::get($snapshot_file));
+        }
 
-        echo "\n\nFields\n";
+        $resources=collect($snapshot->resources);
+        [$resources_op,$res_to_delete,$res_to_add,$res_to_update]=
+        $this->import(
+            'Resource',
+            $resources,
+            [
+                'id',
+                'name',
+                'label',
+                'schema_id'
+            ],
+            'name'
+        );
 
         $fields=$resources->pluck('fields')->collapse();
-        $fields_op = $fields->map(function ($field) {
-            return collect($field)
-                ->only([
+        [$fields_op,$fields_to_delete,$fields_to_add,$fields_to_update]=
+        $this->import(
+            'Field',
+            $fields,
+            [
                 'id',
                 'name',
                 'resource_id',
@@ -75,79 +78,69 @@ class Import extends Command
                 'is_translatable',
                 'label',
                 'rel_res_id',
-                'to_delete'
-                ])
-                ->put('to_delete',false)
-                ->all();
-        });
-        Models\Field::where('to_delete',false)
-        ->update([
-         'to_delete' => true
-        ]);
-        $bar = $this->output->createProgressBar(count($fields_op));    
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();  
+                ],
+            [
+                'name'
+            ]
+        );
 
-        Models\Field::upsert($fields_op->all(), 'id');
-        $fields_deleted=Models\Field::where('to_delete', true);
-        $fields_deleted_count=$fields_deleted->count();
-        $fields_deleted->delete();
-        $bar->finish();
-        echo "\n";
-        echo "Old fields deleted:" . $fields_deleted_count . "\n";
-        echo "New fields added:" . $fields_op->count() . ".\n"; 
-
-
-
-
-
-
-
-
-
-        echo "\nThings\n";
         $things=$resources->pluck('data')->collapse();
-        $things_op = $things->map(function ($thing) {
-            return collect($thing)
-                ->only(['id', 'resource_id'])
-                ->put('to_delete',false)
-                ->all();
-        });
+        [$things_op,$things_to_delete,$things_to_add,$things_to_update]=
+        $this->import(
+            'Thing',
+            $things,
+            [
+                'id',
+                'resource_id'
+            ],
+            'id'
+        );
 
-        Models\Thing::where('to_delete',false)
-        ->update([
-         'to_delete' => true
-        ]);
+        $force = $this->option('force');
+        if(!$force &&   $this->danger){
+            $confirm = $this->ask('Do you want to proceed? (y/N)');
+            if($confirm != 'y' && $confirm != 'Y' && $confirm != 'yes' && $confirm != 'YES'){
+                return null;
+            }
+        }
 
+
+        $this->comment('Uploading database...');
+
+        echo "Resources:\n";
+        $bar = $this->output->createProgressBar(count($resources_op));
+        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
+        $bar->start();
+        Models\Resource::upsert($resources_op->all(), 'id');
+        $res_to_delete_ids=collect($res_to_delete)->pluck('id');
+        Models\Resource::whereIn('id',$res_to_delete_ids)->delete();
+        $bar->finish();
+
+        echo "\nFields:\n";
+        $bar = $this->output->createProgressBar(count($fields_op));
+        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%'); 
+        $bar->start(); 
+        Models\Field::upsert($fields_op->all(), 'id');
+        $fields_to_delete_ids=collect($fields_to_delete)->pluck('id');
+        Models\Field::whereIn('id',$fields_to_delete_ids)->delete();
+        $bar->finish();
+
+        echo "\nThings:\n";
         $chunks=array_chunk($things_op->all() ,1000);
-
+        
         $bar = $this->output->createProgressBar(count($chunks));    
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();  
-
-
-        foreach($chunks as $chunk_i => $chunk) {
+        
+        foreach($chunks as $chunk_i => $chunk) {            
             Models\Thing::upsert($chunk, 'id');
+            $chunk_ids=collect($chunk)->pluck('id')->all();
+            $things_to_delete_ids=collect($things_to_delete)->pluck('id')->all();
+            Models\Thing::whereIn('id',array_intersect($things_to_delete_ids,$chunk_ids))->delete();
         }
-        $things_deleted=Models\Thing::where('to_delete', true);
-        $things_deleted_count=$things_deleted->count();
-        $things_deleted->delete();
+        
+        
         $bar->finish();
-        echo "\n";
-        echo "Old things deleted:" . $things_deleted_count . "\n";
-        echo "New things added:" . $things_op->count() . ".\n"; 
-
-
-
-
-
-
-
-
-
-
-
-
 
         echo "\nRelations\n";
         $things_relations = $things->map(function ($value) {
@@ -178,13 +171,13 @@ class Import extends Command
                 }
             }
             Models\Relation::whereIn('thing_from_id',$chunk)->delete();
-            Models\Relation::insert($relations_op->all());
+            foreach (array_chunk($relations_op->all(), 500) as $insert_chunk) {
+                Models\Relation::insert($insert_chunk);
+            }
         }
         $bar->finish();
 
-        
-
-        echo "\n\nValues\n";
+        echo "\nValues\n";
         $things_fields = $things->map(function ($value) {
             return collect($value)
                 ->only(['id','fields']);
@@ -261,12 +254,12 @@ class Import extends Command
         }
         $bar->finish();
         
-        $this->comment("\n\nGenerating models...");
+        echo "\nModels\n";
         $bar = $this->output->createProgressBar(count($resources_op));    
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
         foreach($resources as $resource) {
-            op_gen_model($resource);
+            $this->op_gen_model($resource);
             $bar->advance();
         }
         $bar->finish();
@@ -274,48 +267,124 @@ class Import extends Command
 
         Models\Resource::cacheResources();
     }
-}
+
+    function import($name, $objects, $keys, $pluck){
+        $objects_op = $objects->map(function ($object) use ($keys) {
+            return collect($object)
+                ->only($keys)
+                ->all();
+        });
+
+        $model='OnPage\\Models\\' . $name;
+        $objects_old=$model::all();
+        $objects_old = $objects_old->map(function ($object) use ($keys) {
+            return collect($object)
+                ->only($keys)
+                ->all();
+        });
+        [$objects_to_delete,$objects_to_add,$objects_to_update]=$this->compareCollections($objects_old,$objects_op);
+        
 
 
-function op_gen_model(object $res) {
-    $camel_name = op_snake_to_camel($res->name);
-    //$extends = $res->is_product ? 'Post' : 'Term';
-    //$extends_lc = strtolower($extends);
-  
-    $code = "<?php\nnamespace OnPage\\Op; \n";
-    $code.= "class $camel_name extends \OnPage\Models\Thing {\n";
-    $code.= "  protected \$table = 'things'; \n";
-    $code.= "  public static function boot() {
-      parent::boot();
-      self::addGlobalScope('resource', function(\$q) {
-        \$q->whereResource_id($res->id);
-      });
-    }\n";
-/*       self::addGlobalScope('oplang', function(\$q) {
-        \$q->localized();
-      });
-      self::addGlobalScope('opmeta', function(\$q) {
-        \$q->loaded();
-      }); */
-      
-    foreach ($res->fields as $f) {
-      if ($f->type == 'relation') {
-        //$rel_method = $f->rel_res->is_product ? 'posts' : 'terms';
-        $rel_class=Models\Resource::find($f->rel_res_id)->name;
-        $rel_class = op_snake_to_camel($rel_class);
-        //$rel_class_primary = $f->rel_res->is_product ? 'ID' : 'term_id';
-        $code.= "  function $f->name() {\n";
-        $code.= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id');\n";
-        $code.= "  }\n";
-      }
+        if(count($objects_to_add)>0) {
+            echo count($objects_to_add) . " new " . $name . "s will be added.";
+            //echo collect($objects_to_add)->pluck($pluck);
+            echo "\n";
+        }
+        
+        if($objects_to_delete || $objects_to_update){
+            $this->error("-- DANGER --");
+            if($objects_to_delete) {
+                echo "The following " . $name . "s will be deleted: ";
+                echo collect($objects_to_delete)->pluck($pluck);
+                echo "\n";
+            }
+            if($objects_to_update) {
+                echo "The following " . $name . "s have changed: \033[0m\n";
+                foreach($objects_to_update as $obj){
+                    foreach($obj['old'] as $key => $value) {
+                        echo "[" . $key . "] " . "=> ";
+                        if( $value == $obj['new'][$key]) {
+                            echo $value;
+                        } else {
+                            echo "(from ";
+                            echo "\033[31m";
+                            echo $value;
+                            echo "\033[0m";
+                            echo " to ";
+                            echo "\033[32m";
+                            if ($obj['new'][$key] == ""){
+                                echo "NULL";
+                            } else {
+                                echo $obj['new'][$key];
+                            }
+                            echo "\033[0m)";
+                        }
+                        echo "\n";
+                    }
+
+                }
+            }
+            echo("\033[0m");
+        }
+        
+       
+        return [$objects_op,$objects_to_delete,$objects_to_add,$objects_to_update];        
     }
-    $code.= "}\n";
-    $file = __DIR__."/../src/Op/$camel_name.php";
-    file_put_contents($file, $code);
-    
-  }
+
+    function compareCollections($collection1, $collection2) {
+        [$to_delete,$to_add,$to_update]=[[],[],[]];
+        $collection1 = $collection1->keyBy('id');
+        $collection2 = $collection2->keyBy('id');
+        foreach ($collection1 as $id => $item) {
+            if (!isset($collection2[$id])) {
+                $to_delete[]= $item;
+                $this->danger=true;
+            } else {
+                if ($collection2[$id] != $item) {
+                    $to_update[]=[
+                        'old' => $item,
+                        'new' => $collection2[$id]
+                    ];
+                    $this->danger=true;
+                }
+            }
+        }
+        
+        foreach ($collection2 as $id => $item) {
+            if (!isset($collection1[$id])) {
+                $to_add[]= $item;
+            }
+        }
+        return [$to_delete,$to_add,$to_update];
+    }
+
+    function op_gen_model(object $res) {
+        $camel_name = $this->op_snake_to_camel($res->name); 
+        $code = "<?php\nnamespace OnPage\\Op; \n";
+        $code.= "class $camel_name extends \OnPage\Models\Thing {\n";
+        $code.= "  protected \$table = 'things'; \n";
+        $code.= "  public static function boot() {
+        parent::boot();
+        self::addGlobalScope('resource', function(\$q) {
+            \$q->whereResource_id($res->id);
+        });
+        }\n";
+        foreach ($res->fields as $f) {
+            if ($f->type == 'relation') {
+                $rel_class=Models\Resource::find($f->rel_res_id)->name;
+                $rel_class = $this->op_snake_to_camel($rel_class);
+                $code.= "  function $f->name() {\n";
+                $code.= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id');\n";
+                $code.= "  }\n";
+            }
+        }
+        $code.= "}\n";
+        $file = __DIR__."/../src/Op/$camel_name.php";
+        file_put_contents($file, $code);
+    }
   
-  function op_snake_to_camel($str) {
+    function op_snake_to_camel($str) {
       $str = explode('_', $str);
       $ret = '';
       foreach ($str as $s) {
@@ -323,3 +392,5 @@ function op_gen_model(object $res) {
       }
       return $ret;
     }
+}
+

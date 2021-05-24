@@ -26,6 +26,7 @@ class OnPagePackageServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 Import::class,
+                Rollback::class
             ]);
         }
 
