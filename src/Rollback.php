@@ -27,9 +27,24 @@ class Rollback extends Command
      * @return int
      */
     public function handle() {
-        $files = Storage::disk('local')->files('snapshots');
-        print_r($files);
-        $snap = $this->ask('Which snapshot do you want to rollback?');
-        $this->call('onpage:import', [ 'snapshot_file' => $files[$snap]]);
+        
+        $files = Storage::disk('local')->files('snapshots');  
+        if (count($files) > 0) {
+            print_r($files);
+            $snap = $this->ask('Which snapshot do you want to rollback?');
+            while (!(isset($files[$snap]))) {
+                if($snap == 'exit') {
+                    return null;
+                }
+                print_r($files);
+                $this->error('Insert a valid number');
+                $snap = $this->ask('Which snapshot do you want to rollback? [exit for cancel]');
+            }
+
+            $this->call('onpage:import', [ 'snapshot_file' => $files[$snap]]);
+        } else {
+            $this->comment('Nothing to rollback');
+        }
+
     }
 }
