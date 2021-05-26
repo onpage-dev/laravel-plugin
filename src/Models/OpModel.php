@@ -9,13 +9,12 @@ class OpModel extends \Illuminate\Database\Eloquent\Model
 
     static function customUpsert(array $data, $primary_key) {
         if (method_exists(self::class, 'upsert')) {
-            self::upsert($data, 'upsert');
+            self::upsert($data, $primary_key);
         } else {
             foreach ($data as $row) {
-                $row = (array) $row;
                 self::updateOrCreate([
                     'id' => $row[$primary_key],
-                ], $data);
+                ], $row);
             }
         }
     }
