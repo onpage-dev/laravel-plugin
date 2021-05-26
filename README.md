@@ -5,49 +5,42 @@ All the CLI command have to be execute at your Laravel project main directory.
 
 ## Installation
 
-- Copy this repository in your existing Laravel project into path `packages/onpage/`
-
-- From command line execute
-    ```bash
-    $ composer require onpage/laravel
-    $ php artisan vendor:publish --provider 'OnPage\OnPageServiceProvider'
-    $ php artisan migrate
-    ```
-    Your file will be copied to the specified publish location and database tables will be inizialized.
+Add the repository to your composer file and install the package:
+```bash
+composer config repositories.repo-name vcs 'https://github.com/onpage-dev/laravel-plugin.git'
+composer require onpage-dev/laravel-plugin
+```
+Publish the configuration file
+```bash
+php artisan vendor:publish --provider 'OnPage\OnPageServiceProvider'
+```
+Run plugin migrations (we use the `op_*` prefix for our tables)
+```bash
+php artisan migrate
+```
 
 
 ## Configuration
 
-- Go to your On Page and generate a new snapshot or select one already created. 
-
-- Copy the snapshot generator token from the preview section.
-
-- In your Laravel application directory find the file `.env` and add to it this two line.
+1. Go to your On Page and generate a new snapshot from the "Snapshot Generator" section
+2. Copy the Snapshot Generator API token
+3. Add the following to your `.env` file:
     ```bash
     ONPAGE_COMPANY=acme-inc
-    ONPAGE_TOKEN=MYSECRETTOKEN
+    ONPAGE_TOKEN=SNAPSHOT-GENERATOR-API-TOKEN
     ```
 
-## Import
-
-For import your data execute this command
-
-
+## Import data
+To import your data execute this command:
 ```bash
-$ php artisan onpage:import
+php artisan onpage:import
 ```
 
-If you already imported some data and execute this command you'll be notified if any important object will be deleted or updated and your are asked if you want proceed anyway.
-
+__Error prevention:__
+If some resources or fields have been removed or changed, the import will prompt you whether you want to continue or not. You can use the `--force` flag to ignore this warning.
+```bash
+php artisan onpage:import --force # Not recommended
 ```
---DANGER--
- The following Resources will be deleted:
--["famiglie","varianti","dimensioni","ambienti","spessori","disponibilit_","colori","texture","granulometria","fondo","paese","materiale","certificazioni"]
-
-Do you want to proceed? (y/N):
-```
-
-Yuo can use --force flag for ski
 
 
 
@@ -60,13 +53,34 @@ $ php artisan onpage:rollback
 
 
 
-## Filter data example
-
+## Querying data
+Because the plugin does not actually generate tables and columns corresponding for your data, you will have to use the `whereField` function instead of the `where` clause, which works in the same manner.
+If you have trouble doing some operations, please open an issue explaining your use case.
 ```php
-$var = \Data\Famiglie::whereHas('varianti', function($q) {
-    $q->whereField('descrizione_seo.it', 'like', '%quarzo%');
-})
+# If the description field is translatable, the query will run on the current locale language
+\Data\Products::whereField('code', 'AT-1273')->first();
+
+# By default, the filter will be applied on the current locale language
+\Data\Products::whereField('description', 'like', '%icecream%')->get();
+
+# You force the filter to search for values in a specific language
+\Data\Products::whereField('description.it', 'like', '%gelato%')->paginate();
+
+# To query relations, you can use the standart whereHas laravel function
+\Data\Products::whereHas('categories', function($q) {
+    $q->whereField('is_visible', true);
+})->get();
+
+# If you have a file field, you can query by token and by name
+\Data\Products::whereField('image:name', 'gelato.jpg')->get();
+\Data\Products::whereField('image:token', '79YT34R8798FG7394N')->get();
+
+# For dimension fields (dim2 and dim3) you can use both the x,y,z selectors, or the 0,1,2 selectors
+\Data\Products::whereField('dimension:x', '>', 100)->get();
+// ... is the same as
+\Data\Products::whereField('dimension:0', '>', 100)->get();
 ```
 
-## File token flags
+
+## Files and thumbnails
 
