@@ -14,7 +14,7 @@ class CreateOpValuesTable extends Migration
     public function up()
     {
         Schema::create('op_values', function (Blueprint $table) {
-            $table->id();
+            $table->bigIngrements('id');
             $table->unsignedBigInteger('thing_id')->index();
             $table->unsignedBigInteger('field_id')->index();
             $table->string('lang', 10)->nullable()->index();

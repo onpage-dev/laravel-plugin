@@ -14,7 +14,7 @@ class CreateOpResourcesTable extends Migration
     public function up()
     {
         Schema::create('op_resources', function (Blueprint $table) {
-            $table->id();
+            $table->bigIngrements('id');
             $table->integer('schema_id')->index();
             $table->string('name')->index();
             $table->string('label', 500);

@@ -14,7 +14,7 @@ class CreateOpRelationsTable extends Migration
     public function up()
     {
         Schema::create('op_relations', function (Blueprint $table) {
-            $table->id();
+            $table->bigIngrements('id');
             $table->unsignedBigInteger('thing_from_id')->index();
             $table->unsignedBigInteger('field_id')->index();
             $table->unsignedBigInteger('thing_to_id')->index();
