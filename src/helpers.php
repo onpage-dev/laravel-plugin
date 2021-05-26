@@ -47,7 +47,7 @@ function to_camel_case($str) {
 
 
 function op_url(string $token, string $name = null) : string {
-  $domain = env('ONPAGE_COMPANY');
+  $domain = config('onpage.company');
   $url = "https://{$domain}.onpage.it/api/storage/$token";
   if ($name) {
       $url .= '?'.http_build_query([

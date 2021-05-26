@@ -15,7 +15,7 @@ class CreateOpThingsTable extends Migration
     {
         Schema::create('op_things', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('resource_id');
+            $table->unsignedBigInteger('resource_id')->index();
             $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
         });
     }

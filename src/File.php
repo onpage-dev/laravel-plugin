@@ -1,7 +1,6 @@
 <?php
 namespace OnPage;
 
-use function OnPage\Models\op_url;
 
 class File {
     public $name;
@@ -19,13 +18,13 @@ class File {
 
     function isImage() : bool {
         $ext = pathinfo($this->name, PATHINFO_EXTENSION);
-        return in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
+        return in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif']);
     }
 
     function thumb(array $opts = []) :string {
         $suffix = '';
         if ($this->isImage() && (isset($opts['x']) || isset($opts['y']))) {
-            $suffix.= ".{$opts['x']}x{$opts['y']}";
+            $suffix.= @".{$opts['x']}x{$opts['y']}";
 
             if (isset($opts['contain'])) {
                 $suffix.= '-contain';
