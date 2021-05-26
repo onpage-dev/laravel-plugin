@@ -1,5 +1,5 @@
 {
-  "name": "onpage-dev/laravel",
+  "name": "onpage-dev/laravel-plugin",
   "description": "A demo package",
   "type": "library",
   "require": {},
