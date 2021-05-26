@@ -8,7 +8,7 @@ class OpModel extends \Illuminate\Database\Eloquent\Model
     public $timestamps = false;
 
     static function customUpsert(array $data, $primary_key) {
-        if (method_exists($this, 'upsert')) {
+        if (method_exists(self::class, 'upsert')) {
             $this->upsert($data, 'upsert');
         } else {
             foreach ($data as $row) {
