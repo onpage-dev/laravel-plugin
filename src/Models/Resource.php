@@ -35,8 +35,12 @@ class Resource extends OpModel
 
     public static function cacheResources() {
         self::$resources = [];
-        foreach (self::with('fields')->get() as $res) {
-            self::$resources[$res->id] = $res;
+        try {
+            foreach (self::with('fields')->get() as $res) {
+                self::$resources[$res->id] = $res;
+            }
+        } catch (\Illuminate\Database\QueryException $th) {
+            // Migrations have not been run yet
         }
     }
 

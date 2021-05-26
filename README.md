@@ -10,7 +10,7 @@ All the CLI command have to be execute at your Laravel project main directory.
 - From command line execute
     ```bash
     $ composer require onpage/laravel
-    $ composer vendor:publish
+    $ php artisan vendor:publish --provider 'OnPage\OnPageServiceProvider'
     $ php artisan migrate
     ```
     Your file will be copied to the specified publish location and database tables will be inizialized.

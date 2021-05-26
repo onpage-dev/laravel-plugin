@@ -1,8 +1,10 @@
 {
-  "name": "onpage-dev/laravel",
+  "name": "onpage-dev/laravel-plugin",
   "description": "A demo package",
   "type": "library",
-  "require": {},
+  "require": {
+    "illuminate/support": "^8.43"
+  },
   "autoload": {
     "psr-4": {
       "OnPage\\": "src",
@@ -15,7 +17,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "OnPage\\OnPagePackageServiceProvider"
+        "OnPage\\OnPageServiceProvider"
       ]
     }
   }

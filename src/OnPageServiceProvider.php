@@ -4,9 +4,8 @@ namespace OnPage;
 
 use Illuminate\Support\ServiceProvider;
 
-class OnPagePackageServiceProvider extends ServiceProvider {
+class OnPageServiceProvider extends ServiceProvider {
     public function register() {
-        // require_once __DIR__.'/helpers.php';
     }
 
     public function boot() {
