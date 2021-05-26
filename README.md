@@ -65,7 +65,7 @@ If you have trouble doing some operations, please open an issue explaining your 
 # You force the filter to search for values in a specific language
 \Data\Products::whereField('description.it', 'like', '%gelato%')->paginate();
 
-# To query relations, you can use the standart whereHas laravel function
+# To query relations, you can use the standard whereHas laravel function
 \Data\Products::whereHas('categories', function($q) {
     $q->whereField('is_visible', true);
 })->get();
