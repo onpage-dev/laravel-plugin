@@ -1,11 +1,16 @@
 <?php
-
 namespace OnPage\Models;
+use Illuminate\Database\Eloquent\Builder;
 
 class Thing extends OpModel {
     protected $table = 'op_things'; 
     private $value_map = null;
     
+    protected static function booted() {
+        static::addGlobalScope('loaded', function (Builder $builder) {
+            $builder->loaded();
+        });
+    }
 
     function resource() {
         return $this->belongsTo(Resource::class, 'resource_id', 'id');
@@ -60,10 +65,14 @@ class Thing extends OpModel {
         }
     }
 
-    function scopeLoaded($q) {
+    function scopeLoaded(Builder $q) {
         $q->with([
             'values'
         ]);
+    }
+
+    function scopeUnloaded(Builder $q) {
+        $q->withoutGlobalScope('loaded');
     }
 
     function val(string $field_name, string $lang = null) {
