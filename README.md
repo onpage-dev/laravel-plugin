@@ -8,7 +8,7 @@ All the CLI command have to be execute at your Laravel project main directory.
 Add the repository to your composer file and install the package:
 ```bash
 composer config repositories.repo-name vcs 'https://github.com/onpage-dev/laravel-plugin.git'
-composer require onpage-dev/laravel-plugin
+composer require onpage-dev/laravel-plugin:^v1
 ```
 Publish the configuration file
 ```bash
@@ -80,32 +80,52 @@ If you have trouble doing some operations, please open an issue explaining your 
 \Data\Products::whereField('dimension:0', '>', 100)->get();
 ```
 
-## Images and thumbnails
+## Getting values
+Once you get your records, you need to display the related data.
+To access field data for a record, you need to use the `->val($field_name, $lang)` function.
+The `$lang` is set to use the current default language.
+Examples:
+```php
+$product->val('name') // Icecream
+$product->val('name', 'it') // Gelato
+```
 
+### Multivalue fields
+For fields which contain multiple values, the `val` function will always return a collection of the values:
+```php
+echo $product->val('descriptions')->first();
+// ... or
+foreach ($product->val('descriptions') as $descr) {
+    echo "- $descr\n";
+}
+```
 
-<!-- To generate image url use the `link` function.
+### File and image fields
+For these files, the returned value will be an instance of `\OnPage\File::class`.
+To get a file or image url use the `->link()` function. The link will point to the original file.
 
 ```php
 # original size
-$product->val('gelato.jpg')->link()
-``` -->
+$product->val('specsheet')->name // icecream-spec.pdf
+$product->val('specsheet')->token // R417C0YAM90RF
+$product->val('specsheet')->link() // https://acme-inc.onpage.it/api/storage/R417C0YAM90RF?name=icecream-spec.pdf
+```
 
-To generate image url use the `link` function.
-To turn the image into a thumbnail add an arry of option accordly with these examples.
-
+To turn images into a thumbnail add an array of options as shown below:
 ```php
-# original size
-$product->val('gelato.jpg')->link()
 
 # maintain proportions width 200px
-$product->val('gelato.jpg')->link(['x' => 200])
+$product->val('cover_image')->thumb(['x' => 200])
 
 # maintain proportions height 100px
-$product->val('gelato.jpg')->link(['y' => 100])
+$product->val('cover_image')->thumb(['y' => 100])
 
 # crop image to width 200px and height 100px
-$product->val('gelato.jpg')->link(['x' => 200, 'y' => 100])
+$product->val('cover_image')->thumb(['x' => 200, 'y' => 100])
 
 # maintain proportions and contain in a rectangle of width 200px and height 100px 
-$product->val('gelato.jpg')->link(['x' => 200, 'y' => 100, 'contain' => true])
+$product->val('cover_image')->thumb(['x' => 200, 'y' => 100, 'contain' => true])
+
+# convert the image to png (default is jpg)
+$product->val('cover_image')->thumb(['x' => 200, 'format' => 'png'])
 ```
