@@ -17,9 +17,9 @@ class CreateOpFieldsTable extends Migration
             $table->id();
             $table->unsignedBigInteger('resource_id');
             $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
-            $table->text('name');
-            $table->text('type');
-            $table->text('label');
+            $table->string('name')->index();
+            $table->string('type');
+            $table->string('label', 500);
             $table->boolean('is_multiple');
             $table->boolean('is_translatable');
             $table->unsignedBigInteger('rel_res_id')->nullable();

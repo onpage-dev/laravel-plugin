@@ -30,8 +30,8 @@ class Import extends Command {
         $snapshot_file = $this->argument('snapshot_file');
         $this->comment('Importing data from snapshot...');
         if (!$snapshot_file) {
-            $company = env('ONPAGE_COMPANY');
-            $token = env('ONPAGE_TOKEN');
+            $company = config('onpage.company');
+            $token = config('onpage.token');
             $url = "https://$company.onpage.it/api/view/$token/dist";
             $info = \json_decode(\file_get_contents($url));
             $fileurl = "https://$company.onpage.it/api/storage/$info->token";
