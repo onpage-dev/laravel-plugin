@@ -9,10 +9,12 @@ class Field extends OpModel {
         'text'     => StringType::class,
         'html'     => StringType::class,
         'markdown' => StringType::class,
+        'date'     => StringType::class,
         'int'      => NumberType::class,
         'real'     => NumberType::class,
         'price'    => NumberType::class,
         'dim1'     => NumberType::class,
+        'bool'     => BoolType::class,
         'weight'   => NumberType::class,
         'volume'   => NumberType::class,
         'dim2'     => DimType::class,
@@ -77,7 +79,16 @@ class NumberType implements FieldType {
     }
 
     static function filter($q, $op, $value, string $subfield = null) {
-        $q->where('value_real0', $op, $value);
+        $q->where('value_real0', $op, (float) $value);
+    }
+}
+class BoolType extends NumberType {
+    static function getValue(Value $value) {
+        return (bool) $value->value_real0;
+    }
+
+    static function filter($q, $op, $value, string $subfield = null) {
+        $q->where('value_real0', $op, (bool) $value);
     }
 }
 class DimType implements FieldType {
