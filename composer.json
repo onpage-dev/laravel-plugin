@@ -3,7 +3,6 @@
   "description": "A demo package",
   "type": "library",
   "require": {
-    "illuminate/support": "^8.43"
   },
   "autoload": {
     "psr-4": {
