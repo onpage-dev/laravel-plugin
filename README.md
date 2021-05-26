@@ -45,13 +45,12 @@ php artisan onpage:import --force # Not recommended
 
 
 ## Restore a previous snapshot
+Each time you import data, the snapshot is saved locally in your Laravel project.
+If you want to restore a previous snapshot execute the rollback command and digit the number associated at the snapshot choosen.
 
 ```bash
 $ php artisan onpage:rollback
 ```
-
-
-
 
 ## Querying data
 Because the plugin does not actually generate tables and columns corresponding for your data, you will have to use the `whereField` function instead of the `where` clause, which works in the same manner.
@@ -81,6 +80,32 @@ If you have trouble doing some operations, please open an issue explaining your 
 \Data\Products::whereField('dimension:0', '>', 100)->get();
 ```
 
+## Images and thumbnails
 
-## Files and thumbnails
 
+<!-- To generate image url use the `link` function.
+
+```php
+# original size
+$product->val('gelato.jpg')->link()
+``` -->
+
+To generate image url use the `link` function.
+If you to turn in into a thumbnail add an arry of option accordly with these examples.
+
+```php
+# original size
+$product->val('gelato.jpg')->link()
+
+# maintain proportions width 200px
+$product->val('gelato.jpg')->link(['x' => 200])
+
+# maintain proportions height 100px
+$product->val('gelato.jpg')->link(['y' => 100])
+
+# crop image to width 200px and height 100px
+$product->val('gelato.jpg')->link(['x' => 200, 'y' => 100])
+
+# maintain proportions and contain in a rectangle of width 200px and height 100px 
+$product->val('gelato.jpg')->link(['x' => 200, 'y' => 100, 'contain' => true])
+```
