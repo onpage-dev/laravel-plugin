@@ -9,7 +9,7 @@ class OpModel extends \Illuminate\Database\Eloquent\Model
 
     static function customUpsert(array $data, $primary_key) {
         if (method_exists(self::class, 'upsert')) {
-            $this->upsert($data, 'upsert');
+            self::upsert($data, 'upsert');
         } else {
             foreach ($data as $row) {
                 $row = (array) $row;
