@@ -33,7 +33,6 @@ class Resource extends OpModel
     } 
 
     public static function cacheResources() {
-
         self::$resources = [];
         foreach (self::with('fields')->get() as $res) {
             self::$resources[$res->id] = $res;
@@ -45,5 +44,4 @@ class Resource extends OpModel
     }
 }
 
-Resource::cacheResources();
 

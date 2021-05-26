@@ -2,49 +2,52 @@
 
 namespace OnPage\Models;
 
-
-class Thing extends OpModel
-{
-    private $value_map=null;
+class Thing extends OpModel {
+    private $value_map = null;
+    
 
     function resource() {
         return $this->belongsTo(Resource::class, 'resource_id', 'id');
     }
+
     function values() {
         return $this->hasMany(Value::class, 'thing_id');
     }
+
     function fields() {
-        return $this->belongsToMany(Field::class, Value::class , 'thing_id');
+        return $this->belongsToMany(Field::class, Value::class, 'thing_id');
     }
+
     function relations() {
         return $this->hasMany(Relation::class, 'thing_from_id');
     }
+
     function relatedThings() {
-        return $this->belongsToMany(Thing::class, Relation::class,'thing_from_id','thing_to_id');
+        return $this->belongsToMany(Thing::class, Relation::class, 'thing_from_id', 'thing_to_id');
     }
 
     function getValues(string $lang = null) : array {
-        $values = [];
-        foreach($this->fields as $field) {
+        $values = ['id' => $this->id];
+        foreach ($this->fields as $field) {
             $values[$field->name] = $this->val($field->name, $lang);
         }
         return $values;
     }
 
     function getLabelAttribute() {
-        $fields=$this->fields;
-        $f=$fields->where('type','string')->first();
+        $fields = $this->fields;
+        $f = $fields->where('type', 'string')->first();
         return $this->val($f->name);
     }
 
-    function getResAttribute() :? Resource {
+    function getResource() : Resource {
         return Resource::findFast($this->resource_id);
     }
 
     function valuesFast(string $field_id, string $lang = null) : array {
-        if(!$this->value_map) {
-            $this->value_map=[];
-            foreach($this->values as $value) {
+        if (!$this->value_map) {
+            $this->value_map = [];
+            foreach ($this->values as $value) {
                 $this->value_map["$value->field_id-$value->lang"][] = $value;
             }
         }
@@ -63,10 +66,12 @@ class Thing extends OpModel
     }
 
     function val(string $field_name, string $lang = null) {
-        $field = $this->res->fieldFastFromName($field_name);
-        if (!$field) throw new \Exception("Cannot find field {$field_name}");    
+        $field = $this->getResource()->fieldFastFromName($field_name);
+        if (!$field) {
+            throw new \Exception("Cannot find field {$field_name}");
+        }
         if ($field->is_translatable && !$lang) {
-            $lang = op_lang();
+            $lang = \OnPage\op_lang();
         }
         if (!$field->is_translatable) {
             $lang = null;
@@ -74,30 +79,7 @@ class Thing extends OpModel
         $values = $this->valuesFast($field->id, $lang);
         $ret = collect();
         foreach ($values as $value) {
-            switch ($field->type) {
-                case 'file':
-                case 'image':
-                    $ret->push(new \OnPage\File([
-                        'name' => $value->value_txt,
-                        'token' => $value->value_token,
-                    ]));
-                    break;
-                case 'dim2':
-                case 'dim3':
-                    $ret->push([
-                        $value->value_real0,
-                        $value->value_real1,
-                        $value->value_real2,
-                    ]);
-                    break;
-                case 'int':
-                case 'real':
-                case 'price':
-                    $ret->push($value->value_real0);
-                    break;
-                default:
-                    $ret->push($value->value_txt);
-            }
+            $ret->push($field->typeClass()::getValue($value));
         }
         // $ret = ['description']
         if ($field->is_multiple) {
@@ -106,27 +88,34 @@ class Thing extends OpModel
             return $ret->first(); // 'description'
         }
     }
-}
 
+    function scopeWhereField(&$query, string $field_name, $op, $value = null) {
+        if (is_null($value)) {
+            $value = $op;
+            $op = '=';
+        }
 
+        $res = $this->getResource();
 
-function op_url(string $token, string $name = null) : string {
-    $domain = env('ONPAGE_COMPANY');
-    $url = "https://{$domain}.onpage.it/api/storage/$token";
-    if ($name) {
-        $url.= '?'.http_build_query([
-            'name' => $name,
-        ]);
+        // Remove .lang
+        $parts = explode('.', $field_name);
+        $field_name = $parts[0];
+        $lang = isset($parts[1]) ? $parts[1] : \OnPage\op_lang();
+
+        // Remove :subtype from fieldname
+        $parts = explode(':', $field_name);
+        $field_name = $parts[0];
+        $subfield = isset($parts[1]) ? $parts[1] : null;
+
+        // Convert field name to Field::class
+        $field = $res->fieldFastFromName($field_name);
+        if (!$field->is_translatable) $lang = null;
+
+        // Query for values
+        $query->whereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filter($q, $op, $value, $subfield);
+        });
     }
-    return $url;
-}
-
-function op_lang(string $set = null) {
-    static $current;
-    if ($set) {
-        $current = $set;
-    } elseif(!$current) {
-        $current = app()->getLocale();
-    }
-    return $current;
 }

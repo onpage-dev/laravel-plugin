@@ -5,8 +5,12 @@
   "require": {},
   "autoload": {
     "psr-4": {
-      "OnPage\\": "src"
-    }
+      "OnPage\\": "src",
+      "Data\\": "data"
+    },
+    "files": [
+      "src/helpers.php"
+    ]
   },
   "extra": {
     "laravel": {
