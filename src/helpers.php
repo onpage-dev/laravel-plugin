@@ -61,9 +61,9 @@ function op_lang(string $set = null) {
   static $current;
   if ($set) {
       $current = $set;
-  } elseif (!$current) {
-      $current = app()->getLocale();
+  } elseif ($current) {
+      return $current; 
   }
-  return $current;
+  return app()->getLocale();
 }
 
