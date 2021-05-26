@@ -1,0 +1,20 @@
+{
+    "name": "onpage-dev/custom",
+    "authors": [
+        {
+            "name": "Giacomo Rizzi",
+            "email": "gufoes@gmail.com"
+        }
+    ],
+    "require": {
+        "onpage-dev/laravel-plugin": "dev-main"
+    },
+    "repositories": {
+        "repo-name": {
+            "type": "path",
+            "url": "../../"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
