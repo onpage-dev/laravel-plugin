@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateRelationsTable extends Migration
+class CreateOpRelationsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,14 +13,14 @@ class CreateRelationsTable extends Migration
      */
     public function up()
     {
-        Schema::create('relations', function (Blueprint $table) {
+        Schema::create('op_relations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('thing_from_id');
             $table->unsignedBigInteger('field_id');
             $table->unsignedBigInteger('thing_to_id');
-            $table->foreign('thing_from_id')->references('id')->on('things')->onDelete('cascade');
-            $table->foreign('field_id')->references('id')->on('fields')->onDelete('cascade');
-            $table->foreign('thing_to_id')->references('id')->on('things')->onDelete('cascade');
+            $table->foreign('thing_from_id')->references('id')->on('op_things')->onDelete('cascade');
+            $table->foreign('field_id')->references('id')->on('op_fields')->onDelete('cascade');
+            $table->foreign('thing_to_id')->references('id')->on('op_things')->onDelete('cascade');
         });
     }
 
@@ -31,6 +31,6 @@ class CreateRelationsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('relations');
+        Schema::dropIfExists('op_relations');
     }
 }

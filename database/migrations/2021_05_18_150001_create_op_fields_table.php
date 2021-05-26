@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateFieldsTable extends Migration
+class CreateOpFieldsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,10 +13,10 @@ class CreateFieldsTable extends Migration
      */
     public function up()
     {
-        Schema::create('fields', function (Blueprint $table) {
+        Schema::create('op_fields', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('resource_id');
-            $table->foreign('resource_id')->references('id')->on('resources')->onDelete('cascade');
+            $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
             $table->text('name');
             $table->text('type');
             $table->text('label');
@@ -33,6 +33,6 @@ class CreateFieldsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('fields');
+        Schema::dropIfExists('op_fields');
     }
 }

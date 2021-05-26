@@ -3,6 +3,7 @@
 namespace OnPage\Models;
 
 class Field extends OpModel {
+    protected $table = 'op_fields'; 
     const FIELD_TYPES = [
         'string'   => StringType::class,
         'text'     => StringType::class,

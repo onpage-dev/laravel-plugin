@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateResourcesTable extends Migration
+class CreateOpThingsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,10 @@ class CreateResourcesTable extends Migration
      */
     public function up()
     {
-        Schema::create('resources', function (Blueprint $table) {
+        Schema::create('op_things', function (Blueprint $table) {
             $table->id();
-            $table->integer('schema_id');
-            $table->string('label');
-            $table->string('name');
-
+            $table->unsignedBigInteger('resource_id');
+            $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
         });
     }
 
@@ -29,6 +27,6 @@ class CreateResourcesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('resources');
+        Schema::dropIfExists('op_things');
     }
 }

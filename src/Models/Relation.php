@@ -5,6 +5,7 @@ namespace OnPage\Models;
 
 class Relation extends OpModel
 {
+    protected $table = 'op_relations'; 
     public function from() {
         return $this->hasOne(Thing::class, 'thing_from_id');
     }

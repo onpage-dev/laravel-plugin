@@ -4,6 +4,7 @@ namespace OnPage\Models;
 
 class Resource extends OpModel
 {
+    protected $table = 'op_resources'; 
     static $resources = [];
     private $field_name_map = [];
 

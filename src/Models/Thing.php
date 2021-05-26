@@ -3,6 +3,7 @@
 namespace OnPage\Models;
 
 class Thing extends OpModel {
+    protected $table = 'op_things'; 
     private $value_map = null;
     
 

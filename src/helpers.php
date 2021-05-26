@@ -6,7 +6,7 @@ function generate_model_file(object $res) {
   $camel_name = to_camel_case($res->name);
   $code = "<?php\nnamespace Data; \n";
   $code .= "class $camel_name extends \OnPage\Models\Thing {\n";
-  $code .= "  protected \$table = 'things'; \n";
+  $code .= "  protected \$table = 'op_things'; \n";
   $code .= "  static public \$RESOURCE_ID = $res->id; \n";
   $code .= "
   function getResource() : \OnPage\Models\Resource {

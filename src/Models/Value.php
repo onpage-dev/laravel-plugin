@@ -5,6 +5,7 @@ namespace OnPage\Models;
 
 class Value extends OpModel
 {
+    protected $table = 'op_things'; 
     public function thing() {
         return $this->belongsTo(Thing::class, 'thing_id');
     }
