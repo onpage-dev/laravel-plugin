@@ -7,7 +7,7 @@ class OpModel extends \Illuminate\Database\Eloquent\Model
     public $guarded = [];
     public $timestamps = false;
 
-    function customUpsert(array $data, $primary_key) {
+    static function customUpsert(array $data, $primary_key) {
         if (method_exists($this, 'upsert')) {
             $this->upsert($data, 'upsert');
         } else {
