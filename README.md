@@ -30,6 +30,27 @@ php artisan migrate
     ONPAGE_TOKEN=SNAPSHOT-GENERATOR-API-TOKEN
     ```
 
+By default, the plugin will create a `onpage-models` directory in your base directory.
+The folder will be filled with On Page generated models, which you should not modify, as they are generated automatically.
+By default, the models will live in the Data namespace, so you can access them using `\Data\ModelName::...`.
+To make this work, you need to instruct composer to preload this folder.
+```json
+{
+  ...
+  "autoload": {
+    "psr-4": {
+      ...
+      "Data\\": "onpage-models"
+    },
+  }
+}
+```
+
+Finally make sure to update composer.
+```bash
+composer dumpautoload
+```
+
 ## Import data
 To import your data execute this command:
 ```bash
