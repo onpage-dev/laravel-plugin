@@ -14,7 +14,7 @@ class CreateOpFieldsTable extends Migration
     public function up()
     {
         Schema::create('op_fields', function (Blueprint $table) {
-            $table->bigIngrements('id');
+            $table->bigIncrements('id');
             $table->unsignedBigInteger('resource_id');
             $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
             $table->string('name')->index();
