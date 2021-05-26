@@ -109,7 +109,7 @@ class Import extends Command {
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        Models\Resource::upsert($resources_op->all(), 'id');
+        Models\Resource::customUpsert($resources_op->all(), 'id');
         $res_to_delete_ids = collect($res_to_delete)->pluck('id');
         Models\Resource::whereIn('id', $res_to_delete_ids)->delete();
         $bar->finish();
@@ -119,7 +119,7 @@ class Import extends Command {
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        Models\Field::upsert($fields_op->all(), 'id');
+        Models\Field::customUpsert($fields_op->all(), 'id');
         $fields_to_delete_ids = collect($fields_to_delete)->pluck('id');
         Models\Field::whereIn('id', $fields_to_delete_ids)->delete();
         $bar->finish();
@@ -133,7 +133,7 @@ class Import extends Command {
         $bar->start();
         
         foreach ($chunks as $chunk_i => $chunk) {
-            Models\Thing::upsert($chunk, 'id');
+            Models\Thing::customUpsert($chunk, 'id');
             $chunk_ids = collect($chunk)->pluck('id')->all();
             $things_to_delete_ids = collect($things_to_delete)->pluck('id')->all();
             Models\Thing::whereIn('id', array_intersect($things_to_delete_ids, $chunk_ids))->delete();
