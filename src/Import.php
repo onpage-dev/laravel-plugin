@@ -290,7 +290,10 @@ class Import extends Command {
             $bar->advance();
         }
         $bar->finish();
-        echo "\n";
+        Storage::disk('local')->put("snapshots/" . $snap_token , $json);
+        Storage::disk('local')->put("snapshots/last_token.txt", $snap_token);
+        $this->comment("Snapshot saved.");
+        
 
         Models\Resource::cacheResources();
     }
