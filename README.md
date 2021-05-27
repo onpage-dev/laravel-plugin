@@ -63,7 +63,11 @@ If some resources or fields have been removed or changed, the import will prompt
 php artisan onpage:import --force # Not recommended
 ```
 
-
+__Useless import prevention:__
+If you try to import same data you already have, the import is stopped. You can use the `--anyway` flag to ignore this warning.
+```bash
+php artisan onpage:import --anyway # Not recommended
+```
 
 ## Restore a previous snapshot
 Each time you import data, the snapshot is saved locally in your Laravel project.
@@ -134,19 +138,18 @@ $product->val('specsheet')->link() // https://acme-inc.onpage.it/api/storage/R41
 
 To turn images into a thumbnail add an array of options as shown below:
 ```php
-
 # maintain proportions width 200px
-$product->val('cover_image')->thumb(['x' => 200])
+$product->val('cover_image')->link(['x' => 200])
 
 # maintain proportions height 100px
-$product->val('cover_image')->thumb(['y' => 100])
+$product->val('cover_image')->link(['y' => 100])
 
 # crop image to width 200px and height 100px
-$product->val('cover_image')->thumb(['x' => 200, 'y' => 100])
+$product->val('cover_image')->link(['x' => 200, 'y' => 100])
 
 # maintain proportions and contain in a rectangle of width 200px and height 100px 
-$product->val('cover_image')->thumb(['x' => 200, 'y' => 100, 'contain' => true])
+$product->val('cover_image')->link(['x' => 200, 'y' => 100, 'contain' => true])
 
 # convert the image to png (default is jpg)
-$product->val('cover_image')->thumb(['x' => 200, 'format' => 'png'])
+$product->val('cover_image')->link(['x' => 200, 'format' => 'png'])
 ```

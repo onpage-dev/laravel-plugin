@@ -11,7 +11,7 @@ class Import extends Command {
      *
      * @var string
      */
-    protected $signature = 'onpage:import {snapshot_file?} {--force}';
+    protected $signature = 'onpage:import {snapshot_file?} {--force} {--ignoretoken}';
     protected $danger = false;
 
     /**
@@ -42,7 +42,9 @@ class Import extends Command {
             print_r("Label:" . $snapshot->label ."\n");
             $schema_id = $snapshot->id;
             echo("Id:" . $schema_id . "\n");
-            if (Storage::disk('local')->exists('snapshots/last_token.txt')) {
+            
+            $ignore = $this->option('ignoretoken');
+            if (Storage::disk('local')->exists('snapshots/last_token.txt') && !$ignore) {
                 $lasttoken=Storage::disk('local')->get('snapshots/last_token.txt');
                 if($snap_token=$lasttoken){
                     $this->comment("Nothing to import");
