@@ -11,7 +11,7 @@ class Import extends Command {
      *
      * @var string
      */
-    protected $signature = 'onpage:import {snapshot_file?} {--force} {--ignoretoken}';
+    protected $signature = 'onpage:import {snapshot_file?} {--force} {--anyway}';
     protected $danger = false;
 
     /**
@@ -33,17 +33,35 @@ class Import extends Command {
             $company = config('onpage.company');
             $token = config('onpage.token');
             $url = "https://$company.onpage.it/api/view/$token/dist";
-            $info = \json_decode(\file_get_contents($url));
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $result = curl_exec($ch);
+            if (curl_errno($ch)) {
+                echo 'Error:' . curl_error($ch);
+            }
+            curl_close($ch);
+
+            $info = \json_decode($result);
             $snap_token=$info->token;
             $fileurl = "https://$company.onpage.it/api/storage/$snap_token";
             echo $fileurl . "\n";
-            $json = \file_get_contents($fileurl);
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $fileurl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $json = curl_exec($ch);
+            if (curl_errno($ch)) {
+                echo 'Error:' . curl_error($ch);
+            }
+            curl_close($ch);
+            
             $snapshot = json_decode($json);
             print_r("Label:" . $snapshot->label ."\n");
             $schema_id = $snapshot->id;
             echo("Id:" . $schema_id . "\n");
-            
-            $ignore = $this->option('ignoretoken');
+            $ignore = $this->option('anyway');
             if (Storage::disk('local')->exists('snapshots/last_token.txt') && !$ignore) {
                 $lasttoken=Storage::disk('local')->get('snapshots/last_token.txt');
                 if($snap_token=$lasttoken){
