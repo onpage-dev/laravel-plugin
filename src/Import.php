@@ -34,16 +34,24 @@ class Import extends Command {
             $token = config('onpage.token');
             $url = "https://$company.onpage.it/api/view/$token/dist";
             $info = \json_decode(\file_get_contents($url));
-            $fileurl = "https://$company.onpage.it/api/storage/$info->token";
+            $snap_token=$info->token;
+            $fileurl = "https://$company.onpage.it/api/storage/$snap_token";
             echo $fileurl . "\n";
             $json = \file_get_contents($fileurl);
             $snapshot = json_decode($json);
-            $filename = "snapshots/" . date("Y_m_d_His") . "_snapshot.json";
-            Storage::disk('local')->put($filename, $json);
-            $schema_id = $snapshot->id;
             print_r("Label:" . $snapshot->label ."\n");
+            $schema_id = $snapshot->id;
             echo("Id:" . $schema_id . "\n");
-            echo("Snapshot saved at " . "storage/app/" . $filename . "\n\n");
+            if (Storage::disk('local')->exists('snapshots/last_token.txt')) {
+                $lasttoken=Storage::disk('local')->get('snapshots/last_token.txt');
+                if($snap_token=$lasttoken){
+                    $this->comment("Nothing to import");
+                    return null;
+                }  
+            }
+            Storage::disk('local')->put("snapshots/" . $snap_token , $json);
+            Storage::disk('local')->put("snapshots/last_token.txt", $snap_token);
+            echo("Snapshot saved.");
         } else {
             $snapshot = \json_decode(Storage::get($snapshot_file));
         }

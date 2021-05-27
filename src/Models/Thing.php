@@ -125,7 +125,7 @@ class Thing extends OpModel {
         });      
     }
 
-    function scopeWhereNotField($query, string $field_name, $op, $value = null) {
+    function scopeWhereFieldNot($query, string $field_name, $op, $value = null) {
         if (is_null($value)) { $value = $op; $op = '='; }
         [$field,$subfield,$lang]=$this->fieldExplode($field_name);
         $query->whereDoesntHave('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
@@ -143,6 +143,15 @@ class Thing extends OpModel {
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $op, $value, $subfield);
         });  
+    }
+
+    function scopeOrWhereFieldNot($query, string $field_name, array $values){
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filter($q, $values, $subfield);
+        });   
     }
 
     function scopeWhereFieldIn($query, string $field_name, $values) {

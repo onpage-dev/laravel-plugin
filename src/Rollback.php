@@ -30,13 +30,19 @@ class Rollback extends Command
         
         $files = Storage::disk('local')->files('snapshots');  
         if (count($files) > 0) {
-            print_r($files);
+            foreach($files as $key => $file) {
+                $time = Storage::lastModified($file);
+                echo "[". $key . "] => " . date("Y_m_d_His",$time) . "\n";
+            }
             $snap = $this->ask('Which snapshot do you want to rollback?');
             while (!(isset($files[$snap]))) {
                 if($snap == 'exit') {
                     return null;
                 }
-                print_r($files);
+                foreach($files as $key => $file) {
+                    $time = Storage::lastModified($file);
+                    echo "[". $key . "] => " . date("Y_m_d_His",$time) . "\n";
+                }
                 $this->error('Insert a valid number');
                 $snap = $this->ask('Which snapshot do you want to rollback? [exit for cancel]');
             }
