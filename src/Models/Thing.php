@@ -99,33 +99,86 @@ class Thing extends OpModel {
         }
     }
 
-    function scopeWhereField(&$query, string $field_name, $op, $value = null) {
-        if (is_null($value)) {
-            $value = $op;
-            $op = '=';
-        }
-
+    private function fieldExplode($field_name) : array {
         $res = $this->getResource();
-
         // Remove .lang
         $parts = explode('.', $field_name);
         $field_name = $parts[0];
         $lang = isset($parts[1]) ? $parts[1] : \OnPage\op_lang();
-
         // Remove :subtype from fieldname
         $parts = explode(':', $field_name);
         $field_name = $parts[0];
         $subfield = isset($parts[1]) ? $parts[1] : null;
-
         // Convert field name to Field::class
         $field = $res->fieldFastFromName($field_name);
         if (!$field->is_translatable) $lang = null;
+        return [$field,$subfield,$lang];
+    }
 
-        // Query for values
+    function scopeWhereField($query, string $field_name, $op, $value = null) {
+        if (is_null($value)) { $value = $op; $op = '='; }
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
         $query->whereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });
+        });      
     }
+
+    function scopeWhereNotField($query, string $field_name, $op, $value = null) {
+        if (is_null($value)) { $value = $op; $op = '='; }
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->whereDoesntHave('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filter($q, $op, $value, $subfield);
+        });      
+    }
+  
+    function scopeOrWhereField($query, string $field_name, $op, $value) {
+        if (is_null($value)) { $value = $op; $op = '='; }
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->orWhereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filter($q, $op, $value, $subfield);
+        });  
+    }
+
+    function scopeWhereFieldIn($query, string $field_name, $values) {
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);        
+        $query->whereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filterIn($q, $values, $subfield);
+        });   
+    }
+
+    function scopeWhereFieldNotIn($query, string $field_name, array $values){
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->whereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filterIn($q, $values, $subfield);
+        });   
+    }
+
+    function scopeOrWhereFieldIn($query, string $field_name, array $values){
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->orWhereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filterIn($q, $values, $subfield);
+        });   
+    }
+
+    function scopeOrWhereFieldNotIn($query, string $field_name, array $values){
+        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
+            $q->where('field_id', $field->id);
+            $q->where('lang', $lang);
+            return $field->typeClass()::filterIn($q, $values, $subfield);
+        });   
+    }
+
 }
