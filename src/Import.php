@@ -59,7 +59,9 @@ class Import extends Command {
                 'label',
                 'schema_id'
             ],
+            [
             'name'
+            ]
         );
 
         $fields = $resources->pluck('fields')->collapse();
@@ -91,9 +93,10 @@ class Import extends Command {
                 'id',
                 'resource_id'
             ],
+            [
             'id'
+            ]
         );
-
         $force = $this->option('force');
         if (!$force && $this->danger) {
             $confirm = $this->ask('Do you want to proceed? (y/N)');
@@ -105,23 +108,39 @@ class Import extends Command {
         $this->comment('Uploading database...');
 
         echo "Resources:\n";
-        $bar = $this->output->createProgressBar(count($resources_op));
+
+        Models\Resource::customUpsert($resources_op->all(), 'id');
+        $res_to_delete_ids = collect($res_to_delete)->pluck('id');
+        $bar_count=count($res_to_delete_ids) ? count($res_to_delete_ids) : 1; 
+        $bar = $this->output->createProgressBar($bar_count);
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        Models\Resource::customUpsert($resources_op->all(), 'id');
+/*      Models\Resource::customUpsert($resources_op->all(), 'id');
         $res_to_delete_ids = collect($res_to_delete)->pluck('id');
-        Models\Resource::whereIn('id', $res_to_delete_ids)->delete();
+        Models\Resource::whereIn('id', $res_to_delete_ids)->delete(); */
+        
+        foreach($res_to_delete_ids as $id) {
+            Models\Resource::find($id)->delete();
+            $bar->advance();
+        }
+
+
         $bar->finish();
 
         echo "\nFields:\n";
-        $bar = $this->output->createProgressBar(count($fields_op));
+        $chunks = array_chunk($fields_op->all(), 100);
+        $bar = $this->output->createProgressBar(count($chunks));
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        Models\Field::customUpsert($fields_op->all(), 'id');
-        $fields_to_delete_ids = collect($fields_to_delete)->pluck('id');
-        Models\Field::whereIn('id', $fields_to_delete_ids)->delete();
+        foreach ($chunks as $chunk_i => $chunk) {
+            Models\Field::customUpsert($fields_op->all(), 'id');
+            $chunk_ids = collect($chunk)->pluck('id')->all();
+            $fields_to_delete_ids = collect($fields_to_delete)->pluck('id')->all();
+            Models\Field::whereIn('id', array_intersect($fields_to_delete_ids, $chunk_ids))->delete();        
+            $bar->advance();
+        }
         $bar->finish();
 
         echo "\nThings:\n";
@@ -133,10 +152,11 @@ class Import extends Command {
         $bar->start();
         
         foreach ($chunks as $chunk_i => $chunk) {
-            Models\Thing::customUpsert($chunk, 'id');
+            Models\Thing::upsert($chunk, 'id');
             $chunk_ids = collect($chunk)->pluck('id')->all();
             $things_to_delete_ids = collect($things_to_delete)->pluck('id')->all();
             Models\Thing::whereIn('id', array_intersect($things_to_delete_ids, $chunk_ids))->delete();
+            $bar->advance();
         }
         
         $bar->finish();
@@ -174,6 +194,7 @@ class Import extends Command {
             foreach (array_chunk($relations_op->all(), 500) as $insert_chunk) {
                 Models\Relation::insert($insert_chunk);
             }
+            $bar->advance();
         }
         $bar->finish();
 
@@ -185,12 +206,13 @@ class Import extends Command {
         ->pluck('fields', 'id');
         $thing_ids = $things_fields->keys();
         $chunks = array_chunk($thing_ids->all(), 100);
-        $bar = $this->output->createProgressBar(count($chunks));
+        $m=count($chunks);
+        $bar = $this->output->createProgressBar($m);
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
+        $fields_from_db=Models\Field::all();
         foreach ($chunks as $chunk_i => $chunk) {
-            
             $values_op = collect([]);
             foreach ($chunk as $thing_id) {
                 $field_values = collect($things_fields[$thing_id]);
@@ -200,7 +222,7 @@ class Import extends Command {
                     $field_id = $parts[0]; // 1234
                     $lang = @$parts[1]; // 'it' oppure null
                     $values = $field_values[$field_key];
-                    $field = Models\Field::find($field_id);
+                    $field = $fields_from_db->find($field_id);
                     if (!$field->is_multiple) {
                         $values = [$values];
                     }
@@ -221,7 +243,9 @@ class Import extends Command {
                 }
             }
             Models\Value::whereIn('thing_id', $chunk)->delete();
-            foreach (array_chunk($values_op->all(), 500) as $insert_chunk) {
+            $subchunk=array_chunk($values_op->all(), 500);
+            $n=count($subchunk);
+            foreach ($subchunk as $i => $insert_chunk) {
                 Models\Value::insert($insert_chunk);
             }
             $bar->advance();
@@ -257,7 +281,7 @@ class Import extends Command {
                 ->only($keys)
                 ->all();
         });
-        [$objects_to_delete,$objects_to_add,$objects_to_update] = $this->compareCollections($objects_old, $objects_op);
+        [$objects_to_delete,$objects_to_add,$objects_to_update] = $this->compareCollections($name, $objects_old, $objects_op);
         
         if (count($objects_to_add) > 0) {
             echo count($objects_to_add) . " new " . $name . "s will be added.";
@@ -290,21 +314,25 @@ class Import extends Command {
         return [$objects_op, $objects_to_delete, $objects_to_add, $objects_to_update];
     }
 
-    function compareCollections($collection1, $collection2) {
+    function compareCollections($name, $collection1, $collection2) {
         [$to_delete,$to_add,$to_update] = [[], [], []];
         $collection1 = $collection1->keyBy('id');
         $collection2 = $collection2->keyBy('id');
         foreach ($collection1 as $id => $item) {
             if (!isset($collection2[$id])) {
                 $to_delete[] = $item;
-                $this->danger = true;
+                if ($name == 'Resource' || $name == 'Field') {
+                    $this->danger = true;
+                }
             } else {
                 if ($collection2[$id] != $item) {
                     $to_update[] = [
                         'old' => $item,
                         'new' => $collection2[$id]
                     ];
-                    $this->danger = true;
+                    if ($name == 'Resource' || $name == 'Field') {
+                        $this->danger = true;
+                    }
                 }
             }
         }
