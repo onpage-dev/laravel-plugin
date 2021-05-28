@@ -11,7 +11,7 @@ class Rollback extends Command {
      *
      * @var string
      */
-    protected $signature = 'onpage:rollback';
+    protected $signature = 'onpage:rollback {--anyway} {--force}';
 
     /**
      * The console command description.
@@ -29,8 +29,10 @@ class Rollback extends Command {
         $files = Storage::disk('local')->files('snapshots');
         if (count($files) > 0) {
             foreach ($files as $key => $file) {
-                $time = Storage::lastModified($file);
-                echo "[". $key . "] => " . date("Y_m_d_His", $time) . "\n";
+                if ($file != 'snapshots/last_token.txt') {
+                    $time = Storage::lastModified($file);
+                    echo "[". $key . "] => " . date("Y_m_d_His", $time) . "\n";
+                }
             }
             $snap = $this->ask('Which snapshot do you want to rollback?');
             while (!(isset($files[$snap]))) {
@@ -45,7 +47,7 @@ class Rollback extends Command {
                 $snap = $this->ask('Which snapshot do you want to rollback? [exit for cancel]');
             }
 
-            $this->call('onpage:import', [ 'snapshot_file' => $files[$snap]]);
+            $this->call('onpage:import', ['--force' => $this->option('force'), '--anyway' => $this->option('anyway') , 'snapshot_file' => $files[$snap]]);
         } else {
             $this->comment('Nothing to rollback');
         }

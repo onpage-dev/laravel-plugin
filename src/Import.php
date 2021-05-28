@@ -20,7 +20,7 @@ class Import extends Command {
 
     function finalizeImport() {
         Storage::disk('local')->put('snapshots/last_token.txt', $this->current_token);
-        Storage::disk('local')->put("snapshots/$this->current_token", $json);
+        Storage::disk('local')->put("snapshots/$this->current_token", $this->current_token);
     }
 
     /**
@@ -31,26 +31,27 @@ class Import extends Command {
     public function handle() {
         $snapshot_file = $this->argument('snapshot_file');
         $this->comment('Importing data from snapshot...');
+        $company = config('onpage.company');
         if (!$snapshot_file) {
-            $company = config('onpage.company');
             $token = config('onpage.token');
             $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
                 throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
             });
             $this->current_token = $info->token;
-            $snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
-                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
-            });
-            print_r("Label:" . $snapshot->label ."\n");
-            $schema_id = $snapshot->id;
-            echo("Id:" . $schema_id . "\n");
-            $ignore = $this->option('anyway');
-            if ($this->getLastToken() == $this->current_token && !$ignore) {
-                $this->comment("Nothing to import");
-                return null;
-            }
         } else {
-            $snapshot = \json_decode(Storage::get($snapshot_file));
+            $this->current_token = Storage::get($snapshot_file);
+        }
+
+        $snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
+            throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+        });
+        print_r("Label:" . $snapshot->label ."\n");
+        $schema_id = $snapshot->id;
+        echo("Id:" . $schema_id . "\n");
+        $ignore = $this->option('anyway');
+        if ($this->getLastToken() == $this->current_token && !$ignore) {
+            $this->comment("Nothing to import");
+            return null;
         }
 
         $resources = collect($snapshot->resources);
@@ -202,7 +203,7 @@ class Import extends Command {
         }
         $bar->finish();
 
-        echo "\nValues\n";
+        /* echo "\nValues\n";
         $things_fields = $things->map(function ($value) {
             return collect($value)
                 ->only(['id', 'fields']);
@@ -254,7 +255,7 @@ class Import extends Command {
             }
             $bar->advance();
         }
-        $bar->finish();
+        $bar->finish(); */
         
         echo "\nModels\n";
         $bar = $this->output->createProgressBar(count($resources_op));
