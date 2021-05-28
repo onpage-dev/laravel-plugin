@@ -66,7 +66,6 @@ class Import extends Command {
             'rel_res_id',
         ]);
 
-        
         // Refresh resource cache
         Cache::refresh();
 
@@ -149,7 +148,8 @@ class Import extends Command {
             ], collect($item)->only($fields)->all());
             $bar->advance();
         }
-        $bar->finish(); echo "\n";
+        $bar->finish();
+        echo "\n";
 
         if (count($changes->del)) {
             $this->comment("Deleting old {$model_name}s...");
@@ -158,13 +158,14 @@ class Import extends Command {
                 $model::where('id', $item->id)->delete();
                 $bar->advance();
             }
-            $bar->finish(); echo "\n";
+            $bar->finish();
+            echo "\n";
         }
     }
 
     function importThings() {
         $insert = [];
-        $flush = function() use (&$insert) {
+        $flush = function () use (&$insert) {
             // echo "tids...\n";
             $tids = collect($insert)->pluck('thing_id')->unique();
             // echo "deleting...\n";
@@ -176,7 +177,6 @@ class Import extends Command {
             $insert = [];
         };
 
-        
         $this->comment("Importing things...");
         $changes = $this->changes['Thing'];
         $existing_tids = Models\Thing::pluck('resource_id', 'id');
@@ -196,11 +196,12 @@ class Import extends Command {
             $bar->advance();
         }
         $flush();
-        $bar->finish(); echo "\n";
+        $bar->finish();
+        echo "\n";
 
-        if (count($things_to_delete)) {
+        if (count($changes->del)) {
             $this->comment('Deleting old things...');
-            foreach (array_chunk($things_to_delete, 1000) as $chunk) {
+            foreach (array_chunk($changes->del, 1000) as $chunk) {
                 $ids = collect($chunk)->pluck('id');
                 Models\Thing::whereIn('id', $ids)->delete();
             }
@@ -269,7 +270,8 @@ class Import extends Command {
             // Advance bar
             $bar->advance();
         }
-        $bar->finish(); echo "\n";
+        $bar->finish();
+        echo "\n";
     }
 
     function computeChanges($model, $objects, $check_columns) {
