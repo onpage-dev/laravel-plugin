@@ -30,7 +30,7 @@ function generate_model_file(object $res) {
     $code .= "  static public \$RESOURCE_ID = $res->id; \n";
     $code .= "
   function getResource() : \OnPage\Models\Resource {
-    return \OnPage\Models\Resource::findFast($res->id);
+    return \OnPage\Cache::idToResource($res->id);
   }
 ";
 
@@ -88,4 +88,22 @@ function op_lang(string $set = null) {
         return $current;
     }
     return app()->getLocale();
+}
+
+function get_backtrace(bool $exclude_vendor = false) : array {
+    $trace = debug_backtrace();
+    $ret = [];
+    foreach ($trace as $i => $call) {
+        if ($exclude_vendor && preg_match('/vendor/', @$call['file'])) {
+            continue;
+        }
+        $ret[] = @"{$call['file']}:{$call['line']}\n";
+    }
+    return $ret;
+}
+function log_backtrace(bool $exclude_vendor = true) {
+    $ram = str_pad(number_format(memory_get_usage(true) / 1024 / 1024, 1), 6, " ", STR_PAD_LEFT);
+    $file = trim(get_backtrace($exclude_vendor)[2]);
+    $file = str_replace(base_path(), '', $file);
+    echo ("Backtrace $ram MB  $file\n");
 }

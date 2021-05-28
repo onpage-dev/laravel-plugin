@@ -4,7 +4,8 @@ namespace OnPage\Models;
 
 class Resource extends OpModel {
     protected $table = 'op_resources';
-    static $resources = [];
+    private static $resources = [];
+    private static $id_to_field = [];
     private $field_name_map = [];
 
     public function things() {
@@ -20,32 +21,10 @@ class Resource extends OpModel {
     }
 
     public function fieldFastFromName(string $field_name) : ? Field {
-        if (!$this->field_name_map) {
-            $this->field_name_map = [];
-            foreach ($this->fields as $field) {
-                $this->field_name_map[$field->name] = $field;
-            }
-        }
-        
-        if (isset($this->field_name_map[$field_name])) {
-            return $this->field_name_map[$field_name];
-        } else {
-            return null;
-        }
-    }
-
-    public static function cacheResources() {
-        self::$resources = [];
-        try {
-            foreach (self::with('fields')->get() as $res) {
-                self::$resources[$res->id] = $res;
-            }
-        } catch (\Illuminate\Database\QueryException $th) {
-            // Migrations have not been run yet
-        }
+        return \OnPage\Cache::nameToField($this->id, $field_name);
     }
 
     static function findFast(int $id) : ? Resource {
-        return self::$resources[$id];
+        return \OnPage\Cache::idToResource($id);
     }
 }

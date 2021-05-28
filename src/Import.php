@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Storage;
 class Import extends Command {
     protected $signature = 'onpage:import {snapshot_file?} {--force} {--anyway}';
     protected $danger = false;
-    private $current_token;
     protected $description = 'Import data from On Page';
+    private $current_token;
+    private $snapshot;
+    private $changes = [];
+    private $field_key_to_field = [];
 
     function getLastToken() : ? string {
         if (!Storage::disk('local')->exists('snapshots/last_token.txt')) {
@@ -20,330 +23,332 @@ class Import extends Command {
 
     function finalizeImport() {
         Storage::disk('local')->put('snapshots/last_token.txt', $this->current_token);
-        Storage::disk('local')->put("snapshots/$this->current_token", $this->current_token);
+        Storage::disk('local')->put("snapshots/$this->current_token", json_encode($this->snapshot));
     }
 
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
-    public function handle() {
-        $snapshot_file = $this->argument('snapshot_file');
-        $this->comment('Importing data from snapshot...');
-        $company = config('onpage.company');
-        if (!$snapshot_file) {
-            $token = config('onpage.token');
-            $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
-                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
-            });
-            $this->current_token = $info->token;
-        } else {
-            $this->current_token = Storage::get($snapshot_file);
-        }
+    function createBar($count) {
+        $bar = $this->output->createProgressBar($count);
+        $bar->setBarWidth(1000);
+        $bar->setFormat('%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
+        $bar->start();
+        return $bar;
+    }
 
-        $snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
-            throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
-        });
-        print_r("Label:" . $snapshot->label ."\n");
-        $schema_id = $snapshot->id;
-        echo("Id:" . $schema_id . "\n");
-        $ignore = $this->option('anyway');
-        if ($this->getLastToken() == $this->current_token && !$ignore) {
-            $this->comment("Nothing to import");
+    public function handle() {
+        $this->loadSnapshot();
+        if ($this->getLastToken() == $this->current_token && !$this->option('anyway')) {
+            $this->comment("No updates found, use --anyway to re-import the last snapshot available");
             return null;
         }
+        
+        $this->comment("Computing changes...");
+        $this->computeAllChanges();
+        if (!$this->option('force') && $this->danger) {
+            $confirm = $this->ask('Do you want to proceed? (y/N)');
+            if (!in_array(strtolower($confirm), ['y', 'yes'])) {
+                return null;
+            }
+        }
+        
+        $this->comment("Importing project {$this->snapshot->label}");
+        $this->importSchema(Models\Resource::class, [
+            'schema_id',
+            'name',
+            'label',
+        ]);
+        $this->importSchema(Models\Field::class, [
+            'resource_id',
+            'name',
+            'type',
+            'label',
+            'is_multiple',
+            'is_translatable',
+            'rel_res_id',
+        ]);
 
-        $resources = collect($snapshot->resources);
-        [$resources_op,$res_to_delete,$res_to_add,$res_to_update] =
-        $this->import(
-            'Resource',
+        
+        // Refresh resource cache
+        Cache::refresh();
+
+        $this->generateModels();
+
+        $this->importThings();
+        $this->importRelations();
+
+        $this->finalizeImport();
+        $this->comment("Snapshot saved.");
+    }
+
+    function generateModels() {
+        foreach ($this->snapshot->resources as $res) {
+            generate_model_file($res);
+        }
+    }
+
+    function computeAllChanges() {
+        $resources = collect($this->snapshot->resources);
+        $this->computeChanges(
+            Models\Resource::class,
             $resources,
             [
-                'id',
                 'name',
-                'label',
-                'schema_id'
-            ],
-            [
-                'name'
             ]
         );
 
         $fields = $resources->pluck('fields')->collapse();
-        [$fields_op,$fields_to_delete,$fields_to_add,$fields_to_update] =
-        $this->import(
-            'Field',
+        $this->computeChanges(
+            Models\Field::class,
             $fields,
             [
-                'id',
                 'name',
-                'resource_id',
                 'type',
                 'is_multiple',
                 'is_translatable',
-                'label',
-                'rel_res_id',
-            ],
-            [
-                'name'
             ]
         );
 
         $things = $resources->pluck('data')->collapse();
-        [$things_op,$things_to_delete,$things_to_add,$things_to_update] =
-        $this->import(
-            'Thing',
+        $this->computeChanges(
+            Models\Thing::class,
             $things,
-            [
-                'id',
-                'resource_id'
-            ],
-            [
-                'id'
-            ]
+            [ ]
         );
-        $force = $this->option('force');
-        if (!$force && $this->danger) {
-            $confirm = $this->ask('Do you want to proceed? (y/N)');
-            if ($confirm != 'y' && $confirm != 'Y' && $confirm != 'yes' && $confirm != 'YES') {
-                return null;
+    }
+
+    function loadSnapshot() {
+        $snapshot_file = $this->argument('snapshot_file');
+        if (!$snapshot_file) {
+            $company = config('onpage.company');
+            $token = config('onpage.token');
+            $this->comment('Getting snapshot info...');
+            $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
+                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+            });
+            $this->current_token = $info->token;
+
+            $this->comment('Downloading snapshot...');
+            $this->snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
+                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+            });
+        } else {
+            $this->comment("Loading snapshot...");
+            $this->current_token = Storage::get($snapshot_file);
+            $this->snapshot = json_decode(Storage::disk('local')->get($snapshot_file));
+        }
+    }
+
+    function importSchema(string $model, array $fields) {
+        $model_name = collect(explode('\\', $model))->last();
+        $changes = $this->changes[$model_name];
+
+        $this->comment("Importing {$model_name}s...");
+        $bar = $this->createBar($changes->items->count());
+        foreach ($changes->items as $item) {
+            $model::withoutGlobalScopes()->updateOrCreate([
+                'id' => $item->id,
+            ], collect($item)->only($fields)->all());
+            $bar->advance();
+        }
+        $bar->finish(); echo "\n";
+
+        if (count($changes->del)) {
+            $this->comment("Deleting old {$model_name}s...");
+            $bar = $this->createBar(count($changes->del));
+            foreach ($changes->del as $item) {
+                $model::where('id', $item->id)->delete();
+                $bar->advance();
+            }
+            $bar->finish(); echo "\n";
+        }
+    }
+
+    function importThings() {
+        $insert = [];
+        $flush = function() use (&$insert) {
+            // echo "tids...\n";
+            $tids = collect($insert)->pluck('thing_id')->unique();
+            // echo "deleting...\n";
+            Models\Value::whereIn('thing_id', $tids)->delete();
+            foreach (array_chunk($insert, 100) as $ins) {
+                // echo "insert...\n";
+                Models\Value::insert($ins);
+            }
+            $insert = [];
+        };
+
+        
+        $this->comment("Importing things...");
+        $changes = $this->changes['Thing'];
+        $existing_tids = Models\Thing::pluck('resource_id', 'id');
+        $bar = $this->createBar($changes->items->count());
+        foreach ($changes->items as $thing) {
+            if (!isset($existing_tids[$thing->id])) {
+                Models\Thing::create(collect($thing)->only([
+                    'id',
+                    'resource_id',
+                ])->all());
+                $existing_tids[$thing->id] = $thing->resource_id;
+            }
+
+            $this->computeThingValues($thing, $insert);
+            $flush();
+
+            $bar->advance();
+        }
+        $flush();
+        $bar->finish(); echo "\n";
+
+        if (count($things_to_delete)) {
+            $this->comment('Deleting old things...');
+            foreach (array_chunk($things_to_delete, 1000) as $chunk) {
+                $ids = collect($chunk)->pluck('id');
+                Models\Thing::whereIn('id', $ids)->delete();
             }
         }
+    }
 
-        $this->comment('Uploading database...');
-
-        echo "Resources:\n";
-
-        Models\Resource::customUpsert($resources_op->all(), 'id');
-        $res_to_delete_ids = collect($res_to_delete)->pluck('id');
-        $bar_count = count($res_to_delete_ids) ? count($res_to_delete_ids) : 1;
-        $bar = $this->output->createProgressBar($bar_count);
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        /*      Models\Resource::customUpsert($resources_op->all(), 'id');
-                $res_to_delete_ids = collect($res_to_delete)->pluck('id');
-                Models\Resource::whereIn('id', $res_to_delete_ids)->delete(); */
-        
-        foreach ($res_to_delete_ids as $id) {
-            Models\Resource::find($id)->delete();
-            $bar->advance();
+    function computeThingValues(object $thing, array &$insert) {
+        foreach ($thing->fields as $field_key => $values) {
+            $field = null;
+            $lang = null;
+            if (isset($this->field_key_to_field[$field_key])) {
+                [$field, $lang] = $this->field_key_to_field[$field_key];
+            } else {
+                $parts = explode('_', $field_key); // ['1234', 'en'] oppure ['1234']
+                $field_id = $parts[0]; // 1234
+                $lang = @$parts[1]; // 'it' oppure null
+                $field = Cache::idToField($field_id);
+                $this->field_key_to_field[$field_key] = [$field, $lang];
+            }
+            if (!$field->is_multiple) {
+                $values = [$values];
+            }
+            foreach ($values as $value) {
+                $data = $field->typeClass()::jsonToValueColumns($value);
+                $insert[] = [
+                    'thing_id' => $thing->id,
+                    'field_id' => $field->id,
+                    'lang'     => $lang,
+                ] + $data + [
+                    'value_txt'   => null,
+                    'value_token' => null,
+                    'value_real0' => null,
+                    'value_real1' => null,
+                    'value_real2' => null,
+                ];
+            }
         }
+    }
 
-        $bar->finish();
+    function importRelations() {
+        $things = $this->changes['Thing']->items;
 
-        echo "\nFields:\n";
-        $chunks = array_chunk($fields_op->all(), 100);
-        $bar = $this->output->createProgressBar(count($chunks));
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        foreach ($chunks as $chunk_i => $chunk) {
-            Models\Field::customUpsert($fields_op->all(), 'id');
-            $chunk_ids = collect($chunk)->pluck('id')->all();
-            $fields_to_delete_ids = collect($fields_to_delete)->pluck('id')->all();
-            Models\Field::whereIn('id', array_intersect($fields_to_delete_ids, $chunk_ids))->delete();
-            $bar->advance();
-        }
-        $bar->finish();
-
-        echo "\nThings:\n";
-        $chunks = array_chunk($things_op->all(), 1000);
-        
-        $bar = $this->output->createProgressBar(count($chunks));
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        
-        foreach ($chunks as $chunk_i => $chunk) {
-            Models\Thing::upsert($chunk, 'id');
-            $chunk_ids = collect($chunk)->pluck('id')->all();
-            $things_to_delete_ids = collect($things_to_delete)->pluck('id')->all();
-            Models\Thing::whereIn('id', array_intersect($things_to_delete_ids, $chunk_ids))->delete();
-            $bar->advance();
-        }
-        
-        $bar->finish();
-
-        echo "\nRelations\n";
-        $things_relations = $things->map(function ($value) {
-            return collect($value)
-                ->only(['id', 'rel_ids']);
-        })
-        ->pluck('rel_ids', 'id');
-        $thing_ids = $things_relations->keys();
-        $chunks = array_chunk($thing_ids->all(), 1000);
-        $bar = $this->output->createProgressBar(count($chunks));
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        
+        $this->comment('Importing relations...');
+        $chunks = $things->chunk(100);
+        $bar = $this->createBar(count($chunks));
         foreach ($chunks as $chunk_i => $chunk) {
             $relations_op = collect([]);
-            foreach ($chunk as $thing_id) {
-                $field_values = collect($things_relations[$thing_id]);
-                $field_keys = $field_values->keys();
-                foreach ($field_keys as $field_key) {
-                    $relations_field = $field_values[$field_key];
-                    foreach ($relations_field as $thing_to_id) {
+            foreach ($chunk as $thing) {
+                foreach ($thing->rel_ids as $field_id => $related_ids) {
+                    foreach ($related_ids as $thing_to_id) {
                         $relations_op->push([
-                            'thing_from_id' => $thing_id,
-                            'field_id'      => $field_key,
+                            'thing_from_id' => $thing->id,
+                            'field_id'      => $field_id,
                             'thing_to_id'   => $thing_to_id,
                         ]);
                     }
                 }
             }
-            Models\Relation::whereIn('thing_from_id', $chunk)->delete();
-            foreach (array_chunk($relations_op->all(), 500) as $insert_chunk) {
-                Models\Relation::insert($insert_chunk);
-            }
-            $bar->advance();
-        }
-        $bar->finish();
 
-        /* echo "\nValues\n";
-        $things_fields = $things->map(function ($value) {
-            return collect($value)
-                ->only(['id', 'fields']);
-        })
-        ->pluck('fields', 'id');
-        $thing_ids = $things_fields->keys();
-        $chunks = array_chunk($thing_ids->all(), 100);
-        $m = count($chunks);
-        $bar = $this->output->createProgressBar($m);
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        $fields_from_db = Models\Field::all();
-        foreach ($chunks as $chunk_i => $chunk) {
-            $values_op = collect([]);
-            foreach ($chunk as $thing_id) {
-                $field_values = collect($things_fields[$thing_id]);
-                $field_keys = $field_values->keys();
-                foreach ($field_keys as $field_key) {
-                    $parts = explode('_', $field_key); // ['1234', 'en'] oppure ['1234']
-                    $field_id = $parts[0]; // 1234
-                    $lang = @$parts[1]; // 'it' oppure null
-                    $values = $field_values[$field_key];
-                    $field = $fields_from_db->find($field_id);
-                    if (!$field->is_multiple) {
-                        $values = [$values];
-                    }
-                    foreach ($values as $value) {
-                        $data = $field->typeClass()::jsonToValueColumns($value);
-                        $values_op->push([
-                            'thing_id' => $thing_id,
-                            'field_id' => $field_id,
-                            'lang'     => $lang,
-                        ] + $data + [
-                            'value_txt'   => null,
-                            'value_token' => null,
-                            'value_real0' => null,
-                            'value_real1' => null,
-                            'value_real2' => null,
-                        ]);
-                    }
-                }
+            // Delete and reinsert relations
+            Models\Relation::whereIn('thing_from_id', $chunk->pluck('id'))->delete();
+            foreach ($relations_op->chunk(500) as $insert_chunk) {
+                Models\Relation::insert($insert_chunk->all());
             }
-            Models\Value::whereIn('thing_id', $chunk)->delete();
-            $subchunk = array_chunk($values_op->all(), 500);
-            $n = count($subchunk);
-            foreach ($subchunk as $i => $insert_chunk) {
-                Models\Value::insert($insert_chunk);
-            }
+
+            // Advance bar
             $bar->advance();
         }
-        $bar->finish(); */
-        
-        echo "\nModels\n";
-        $bar = $this->output->createProgressBar(count($resources_op));
-        $bar->setBarWidth(1000);
-        $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
-        $bar->start();
-        foreach ($resources as $resource) {
-            generate_model_file($resource);
-            $bar->advance();
-        }
-        $bar->finish();
-        $this->finalizeImport();
-        $this->comment("Snapshot saved.");
-        Models\Resource::cacheResources();
+        $bar->finish(); echo "\n";
     }
 
-    function import($name, $objects, $keys, $pluck) {
-        $objects_op = $objects->map(function ($object) use ($keys) {
-            return collect($object)
-                ->only($keys)
-                ->all();
-        });
-
-        $model = 'OnPage\\Models\\' . $name;
-        $objects_old = $model::all();
-        $objects_old = $objects_old->map(function ($object) use ($keys) {
-            return collect($object)
-                ->only($keys)
-                ->all();
-        });
-        [$objects_to_delete,$objects_to_add,$objects_to_update] = $this->compareCollections($name, $objects_old, $objects_op);
+    function computeChanges($model, $objects, $check_columns) {
+        $model_name = collect(explode('\\', $model))->last();
+        $existing_objects = $model::withoutGlobalScopes()->get();
+        [$objects_to_delete,$objects_to_add,$objects_to_update] = $this->compareCollections($model, $check_columns, $objects, $existing_objects);
         
         if (count($objects_to_add) > 0) {
-            echo count($objects_to_add) . " new " . $name . "s will be added.";
-            echo "\n";
+            $this->comment(count($objects_to_add) . " new {$model_name}s will be added.");
         }
-        
-        if ($name == 'Resource' || $name == 'Field') {
-            if ($objects_to_delete || $objects_to_update) {
-                $this->error("-- DANGER --");
-                if ($objects_to_delete) {
-                    $this->error("The following {$name}s will be deleted:");
-                    $this->error(collect($objects_to_delete)->pluck($pluck));
+        $is_res = $model == Models\Resource::class;
+        $is_field = $model == Models\Field::class;
+        if ($is_res || $is_field) {
+            if (count($objects_to_delete)) {
+                $this->danger = true;
+                $this->error("The following {$model_name}s will be deleted:");
+                foreach ($objects_to_delete as $obj) {
+                    if ($is_res) {
+                        $this->comment("- $obj->name");
+                    } else {
+                        $this->comment("- {$obj->resource->name} -> $obj->name");
+                    }
                 }
-                if ($objects_to_update) {
-                    $this->error("The following {$name}s have changed:");
-                    foreach ($objects_to_update as $obj) {
-                        foreach ($pluck as $pluck_key) {
-                            $this->error("- " . $obj['old'][$pluck_key]);
-                        }
-                        foreach ($obj['old'] as $key => $value) {
-                            if ($value != $obj['new'][$key]) {
-                                $this->error("[$key] => (from $value to {$obj['new'][$key]})");
-                            }
+            }
+            if (count($objects_to_update)) {
+                $this->danger = true;
+                $this->error("The following {$model_name}s have changed:");
+                foreach ($objects_to_update as $update) {
+                    $obj = $update->existing;
+                    if ($is_res) {
+                        $this->comment("- $obj->name");
+                    } else {
+                        $this->comment("- {$obj->resource->name} -> $obj->name");
+                    }
+
+                    foreach ($check_columns as $col) {
+                        if ($update->existing->$col != $update->new->$col) {
+                            $this->error("  [$col] => (from {$update->existing->$col} to {$update->new->$col})");
                         }
                     }
                 }
             }
+        } else {
+            if (count($objects_to_delete) > 0) {
+                $this->comment(count($objects_to_delete) . " {$model_name}s will be removed.");
+            }
         }
         
-        return [$objects_op, $objects_to_delete, $objects_to_add, $objects_to_update];
+        $this->changes[$model_name] = (object) [
+            'items'  => $objects,
+            'del'    => $objects_to_delete,
+            'add'    => $objects_to_add,
+            'update' => $objects_to_update,
+        ];
     }
 
-    function compareCollections($name, $collection1, $collection2) {
+    function compareCollections($model, array $check_columns, $new_items, $existing_items) {
         [$to_delete,$to_add,$to_update] = [[], [], []];
-        $collection1 = $collection1->keyBy('id');
-        $collection2 = $collection2->keyBy('id');
-        foreach ($collection1 as $id => $item) {
-            if (!isset($collection2[$id])) {
-                $to_delete[] = $item;
-                if ($name == 'Resource' || $name == 'Field') {
-                    $this->danger = true;
-                }
+        $existing_items = $existing_items->keyBy('id');
+        $new_items = $new_items->keyBy('id');
+        foreach ($existing_items as $id => $existing_item) {
+            if (!isset($new_items[$id])) {
+                $to_delete[] = $existing_item;
             } else {
-                if ($collection2[$id] != $item) {
-                    $to_update[] = [
-                        'old' => $item,
-                        'new' => $collection2[$id]
-                    ];
-                    if ($name == 'Resource' || $name == 'Field') {
-                        $this->danger = true;
+                $new_item = $new_items[$id];
+                foreach ($check_columns as $col) {
+                    if ($existing_item->$col != $new_item->$col) {
+                        $to_update[] = (object) [
+                            'existing' => $existing_item,
+                            'new'      => $new_item,
+                        ];
+                        break;
                     }
                 }
             }
         }
         
-        foreach ($collection2 as $id => $item) {
-            if (!isset($collection1[$id])) {
+        foreach ($new_items as $id => $item) {
+            if (!isset($existing_items[$id])) {
                 $to_add[] = $item;
             }
         }

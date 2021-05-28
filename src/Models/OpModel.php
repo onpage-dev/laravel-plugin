@@ -5,15 +5,11 @@ class OpModel extends \Illuminate\Database\Eloquent\Model {
     public $guarded = [];
     public $timestamps = false;
 
-    static function customUpsert(array $data, $primary_key) {
-        if (method_exists(self::class, 'upsert')) {
-            self::upsert($data, $primary_key);
-        } else {
-            foreach ($data as $row) {
-                self::updateOrCreate([
-                    'id' => $row[$primary_key],
-                ], $row);
-            }
+    static function customUpsert($data, $primary_key) {
+        foreach ($data as $row) {
+            self::withoutGlobalScopes()->updateOrCreate([
+                'id' => $row[$primary_key],
+            ], $row);
         }
     }
 }

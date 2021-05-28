@@ -20,6 +20,16 @@ class OnPageServiceProvider extends ServiceProvider {
             Rollback::class
         ]);
 
-        Models\Resource::cacheResources();
+        Cache::refresh();
+
+        // \DB::listen(function ($query) {
+        //     log_backtrace();
+        //     echo "$query->time $query->sql\n";
+        // });
+
+
+
+        // \DB::select('select 1');
+
     }
 }

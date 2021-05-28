@@ -7,7 +7,7 @@ All the CLI command have to be execute at your Laravel project main directory.
 
 Add the repository to your composer file and install the package:
 ```bash
-composer config repositories.repo-name vcs 'https://github.com/onpage-dev/laravel-plugin.git'
+composer config repositories.onpage vcs 'https://github.com/onpage-dev/laravel-plugin.git'
 composer require onpage-dev/laravel-plugin:^v1
 ```
 Publish the configuration file
