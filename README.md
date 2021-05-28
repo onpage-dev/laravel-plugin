@@ -105,6 +105,37 @@ If you have trouble doing some operations, please open an issue explaining your 
 \Data\Products::whereField('dimension:0', '>', 100)->get();
 ```
 
+
+__Advanced whereField clauses:__
+
+If you need to query data with advanced `where*` clauses, you have to use the advanced `whereField*` functions.
+
+
+```php
+
+#prefix 'or' for expand the results to another condition
+\Data\Products::whereField('name','icecream')->orWhereField('kcal','>',200)->get()
+
+#suffix 'Not' for negative query
+\Data\Products::whereFieldNot('calories','like','low calorie')->get()     
+
+#suffix 'In' for search in an array of values
+\Data\Products::whereFieldIn('code',['4','8','15','16','23','42'])->get();
+```
+
+You can also combine them to obtain more advanced clauses, which work in the same manner.
+
+
+```php
+orWhereFieldNot(...)     
+orWhereFieldIn(...)   
+whereFieldNotIn(...)  
+orWhereFieldNotIn(...)
+```
+
+
+
+
 ## Getting values
 Once you get your records, you need to display the related data.
 To access field data for a record, you need to use the `->val($field_name, $lang)` function.
