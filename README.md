@@ -57,13 +57,13 @@ To import your data execute this command:
 php artisan onpage:import
 ```
 
-__Error prevention:__
+__Error prevention__
 If some resources or fields have been removed or changed, the import will prompt you whether you want to continue or not. You can use the `--force` flag to ignore this warning.
 ```bash
 php artisan onpage:import --force # Not recommended
 ```
 
-__Useless import prevention:__
+__Useless import prevention__
 If you try to import same data you already have, the import is stopped. You can use the `--anyway` flag to ignore this warning.
 ```bash
 php artisan onpage:import --anyway # Not recommended
