@@ -2,26 +2,27 @@
 
 namespace OnPage\Models;
 
-class Resource extends OpModel
-{
-    protected $table = 'op_resources'; 
+class Resource extends OpModel {
+    protected $table = 'op_resources';
     static $resources = [];
     private $field_name_map = [];
 
     public function things() {
         return $this->hasMany(Thing::class, 'resource_id');
     }
+
     public function fields() {
         return $this->hasMany(Field::class, 'resource_id');
     }
+
     public function values() {
         return $this->hasManyThrough(Value::class, Thing::class);
     }
 
-    public function fieldFastFromName(string $field_name) :? Field {
-        if(!$this->field_name_map) {
-            $this->field_name_map=[];
-            foreach($this->fields as $field) {
+    public function fieldFastFromName(string $field_name) : ? Field {
+        if (!$this->field_name_map) {
+            $this->field_name_map = [];
+            foreach ($this->fields as $field) {
                 $this->field_name_map[$field->name] = $field;
             }
         }
@@ -31,7 +32,7 @@ class Resource extends OpModel
         } else {
             return null;
         }
-    } 
+    }
 
     public static function cacheResources() {
         self::$resources = [];
@@ -44,9 +45,7 @@ class Resource extends OpModel
         }
     }
 
-    static function findFast(int $id) :? Resource {
+    static function findFast(int $id) : ? Resource {
         return self::$resources[$id];
     }
 }
-
-

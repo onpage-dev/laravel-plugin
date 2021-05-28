@@ -6,20 +6,22 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 class Import extends Command {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'onpage:import {snapshot_file?} {--force} {--anyway}';
     protected $danger = false;
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
+    private $current_token;
     protected $description = 'Import data from On Page';
+
+    function getLastToken() : ? string {
+        if (!Storage::disk('local')->exists('snapshots/last_token.txt')) {
+            return null;
+        }
+        return Storage::disk('local')->get('snapshots/last_token.txt');
+    }
+
+    function finalizeImport() {
+        Storage::disk('local')->put('snapshots/last_token.txt', $this->current_token);
+        Storage::disk('local')->put("snapshots/$this->current_token", $json);
+    }
 
     /**
      * Execute the console command.
@@ -32,46 +34,21 @@ class Import extends Command {
         if (!$snapshot_file) {
             $company = config('onpage.company');
             $token = config('onpage.token');
-            $url = "https://$company.onpage.it/api/view/$token/dist";
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $result = curl_exec($ch);
-            if (curl_errno($ch)) {
-                echo 'Error:' . curl_error($ch);
-            }
-            curl_close($ch);
-
-            $info = \json_decode($result);
-            $snap_token=$info->token;
-            $fileurl = "https://$company.onpage.it/api/storage/$snap_token";
-            echo $fileurl . "\n";
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $fileurl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $json = curl_exec($ch);
-            if (curl_errno($ch)) {
-                echo 'Error:' . curl_error($ch);
-            }
-            curl_close($ch);
-            
-            $snapshot = json_decode($json);
+            $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
+                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+            });
+            $this->current_token = $info->token;
+            $snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
+                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+            });
             print_r("Label:" . $snapshot->label ."\n");
             $schema_id = $snapshot->id;
             echo("Id:" . $schema_id . "\n");
             $ignore = $this->option('anyway');
-            if (Storage::disk('local')->exists('snapshots/last_token.txt') && !$ignore) {
-                $lasttoken=Storage::disk('local')->get('snapshots/last_token.txt');
-                if($snap_token=$lasttoken){
-                    $this->comment("Nothing to import");
-                    return null;
-                }  
+            if ($this->getLastToken() == $this->current_token && !$ignore) {
+                $this->comment("Nothing to import");
+                return null;
             }
-            Storage::disk('local')->put("snapshots/" . $snap_token , $json);
-            Storage::disk('local')->put("snapshots/last_token.txt", $snap_token);
-            echo("Snapshot saved.");
         } else {
             $snapshot = \json_decode(Storage::get($snapshot_file));
         }
@@ -88,7 +65,7 @@ class Import extends Command {
                 'schema_id'
             ],
             [
-            'name'
+                'name'
             ]
         );
 
@@ -122,7 +99,7 @@ class Import extends Command {
                 'resource_id'
             ],
             [
-            'id'
+                'id'
             ]
         );
         $force = $this->option('force');
@@ -139,20 +116,19 @@ class Import extends Command {
 
         Models\Resource::customUpsert($resources_op->all(), 'id');
         $res_to_delete_ids = collect($res_to_delete)->pluck('id');
-        $bar_count=count($res_to_delete_ids) ? count($res_to_delete_ids) : 1; 
+        $bar_count = count($res_to_delete_ids) ? count($res_to_delete_ids) : 1;
         $bar = $this->output->createProgressBar($bar_count);
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-/*      Models\Resource::customUpsert($resources_op->all(), 'id');
-        $res_to_delete_ids = collect($res_to_delete)->pluck('id');
-        Models\Resource::whereIn('id', $res_to_delete_ids)->delete(); */
+        /*      Models\Resource::customUpsert($resources_op->all(), 'id');
+                $res_to_delete_ids = collect($res_to_delete)->pluck('id');
+                Models\Resource::whereIn('id', $res_to_delete_ids)->delete(); */
         
-        foreach($res_to_delete_ids as $id) {
+        foreach ($res_to_delete_ids as $id) {
             Models\Resource::find($id)->delete();
             $bar->advance();
         }
-
 
         $bar->finish();
 
@@ -166,7 +142,7 @@ class Import extends Command {
             Models\Field::customUpsert($fields_op->all(), 'id');
             $chunk_ids = collect($chunk)->pluck('id')->all();
             $fields_to_delete_ids = collect($fields_to_delete)->pluck('id')->all();
-            Models\Field::whereIn('id', array_intersect($fields_to_delete_ids, $chunk_ids))->delete();        
+            Models\Field::whereIn('id', array_intersect($fields_to_delete_ids, $chunk_ids))->delete();
             $bar->advance();
         }
         $bar->finish();
@@ -234,12 +210,12 @@ class Import extends Command {
         ->pluck('fields', 'id');
         $thing_ids = $things_fields->keys();
         $chunks = array_chunk($thing_ids->all(), 100);
-        $m=count($chunks);
+        $m = count($chunks);
         $bar = $this->output->createProgressBar($m);
         $bar->setBarWidth(1000);
         $bar->setFormat(' [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
         $bar->start();
-        $fields_from_db=Models\Field::all();
+        $fields_from_db = Models\Field::all();
         foreach ($chunks as $chunk_i => $chunk) {
             $values_op = collect([]);
             foreach ($chunk as $thing_id) {
@@ -271,8 +247,8 @@ class Import extends Command {
                 }
             }
             Models\Value::whereIn('thing_id', $chunk)->delete();
-            $subchunk=array_chunk($values_op->all(), 500);
-            $n=count($subchunk);
+            $subchunk = array_chunk($values_op->all(), 500);
+            $n = count($subchunk);
             foreach ($subchunk as $i => $insert_chunk) {
                 Models\Value::insert($insert_chunk);
             }
@@ -290,11 +266,8 @@ class Import extends Command {
             $bar->advance();
         }
         $bar->finish();
-        Storage::disk('local')->put("snapshots/" . $snap_token , $json);
-        Storage::disk('local')->put("snapshots/last_token.txt", $snap_token);
+        $this->finalizeImport();
         $this->comment("Snapshot saved.");
-        
-
         Models\Resource::cacheResources();
     }
 
@@ -320,27 +293,27 @@ class Import extends Command {
         }
         
         if ($name == 'Resource' || $name == 'Field') {
-        if ($objects_to_delete || $objects_to_update) {
-            $this->error("-- DANGER --");
-            if ($objects_to_delete) {
-                $this->error("The following " . $name . "s will be deleted:");
-                $this->error(collect($objects_to_delete)->pluck($pluck));
-            }
-            if ($objects_to_update) {
-                $this->error("The following " . $name . "s have changed:");
-                foreach ($objects_to_update as $obj) {
-                    foreach ($pluck as $pluck_key) {
-                        $this->error("- " . $obj['old'][$pluck_key]);
-                    }
-                    foreach ($obj['old'] as $key => $value) {
-                        if ($value != $obj['new'][$key]) {
-                            $this->error("[" . $key . "] " . "=> (from " . $value . " to " . $obj['new'][$key] . ")");
+            if ($objects_to_delete || $objects_to_update) {
+                $this->error("-- DANGER --");
+                if ($objects_to_delete) {
+                    $this->error("The following {$name}s will be deleted:");
+                    $this->error(collect($objects_to_delete)->pluck($pluck));
+                }
+                if ($objects_to_update) {
+                    $this->error("The following {$name}s have changed:");
+                    foreach ($objects_to_update as $obj) {
+                        foreach ($pluck as $pluck_key) {
+                            $this->error("- " . $obj['old'][$pluck_key]);
+                        }
+                        foreach ($obj['old'] as $key => $value) {
+                            if ($value != $obj['new'][$key]) {
+                                $this->error("[$key] => (from $value to {$obj['new'][$key]})");
+                            }
                         }
                     }
                 }
             }
         }
-    }
         
         return [$objects_op, $objects_to_delete, $objects_to_add, $objects_to_update];
     }

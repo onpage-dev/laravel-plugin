@@ -15,13 +15,11 @@ class OnPageServiceProvider extends ServiceProvider {
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
-        Models\Resource::cacheResources();
+        $this->commands([
+            Import::class,
+            Rollback::class
+        ]);
 
-        if ($this->app->runningInConsole()) {
-            $this->commands([
-                Import::class,
-                Rollback::class
-            ]);
-        }
+        Models\Resource::cacheResources();
     }
 }

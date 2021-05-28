@@ -1,9 +1,10 @@
 <?php
 namespace OnPage\Models;
+
 use Illuminate\Database\Eloquent\Builder;
 
 class Thing extends OpModel {
-    protected $table = 'op_things'; 
+    protected $table = 'op_things';
     private $value_map = null;
     
     protected static function booted() {
@@ -111,83 +112,93 @@ class Thing extends OpModel {
         $subfield = isset($parts[1]) ? $parts[1] : null;
         // Convert field name to Field::class
         $field = $res->fieldFastFromName($field_name);
-        if (!$field->is_translatable) $lang = null;
-        return [$field,$subfield,$lang];
+        if (!$field->is_translatable) {
+            $lang = null;
+        }
+        return [$field, $subfield, $lang];
     }
 
     function scopeWhereField($query, string $field_name, $op, $value = null) {
-        if (is_null($value)) { $value = $op; $op = '='; }
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        if (is_null($value)) {
+            $value = $op;
+            $op = '=';
+        }
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->whereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });      
+        });
     }
 
     function scopeWhereFieldNot($query, string $field_name, $op, $value = null) {
-        if (is_null($value)) { $value = $op; $op = '='; }
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        if (is_null($value)) {
+            $value = $op;
+            $op = '=';
+        }
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->whereDoesntHave('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });      
+        });
     }
   
     function scopeOrWhereField($query, string $field_name, $op, $value) {
-        if (is_null($value)) { $value = $op; $op = '='; }
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+        if (is_null($value)) {
+            $value = $op;
+            $op = '=';
+        }
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->orWhereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });  
+        });
     }
 
-    function scopeOrWhereFieldNot($query, string $field_name, array $values){
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+    function scopeOrWhereFieldNot($query, string $field_name, array $values) {
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filter($q, $values, $subfield);
-        });   
+        });
     }
 
     function scopeWhereFieldIn($query, string $field_name, $values) {
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);        
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->whereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filterIn($q, $values, $subfield);
-        });   
+        });
     }
 
-    function scopeWhereFieldNotIn($query, string $field_name, array $values){
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+    function scopeWhereFieldNotIn($query, string $field_name, array $values) {
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->whereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filterIn($q, $values, $subfield);
-        });   
+        });
     }
 
-    function scopeOrWhereFieldIn($query, string $field_name, array $values){
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+    function scopeOrWhereFieldIn($query, string $field_name, array $values) {
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->orWhereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filterIn($q, $values, $subfield);
-        });   
+        });
     }
 
-    function scopeOrWhereFieldNotIn($query, string $field_name, array $values){
-        [$field,$subfield,$lang]=$this->fieldExplode($field_name);
+    function scopeOrWhereFieldNotIn($query, string $field_name, array $values) {
+        [$field,$subfield,$lang] = $this->fieldExplode($field_name);
         $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
             return $field->typeClass()::filterIn($q, $values, $subfield);
-        });   
+        });
     }
-
 }
