@@ -27,9 +27,6 @@ class OnPageServiceProvider extends ServiceProvider {
         //     echo "$query->time $query->sql\n";
         // });
 
-
-
         // \DB::select('select 1');
-
     }
 }

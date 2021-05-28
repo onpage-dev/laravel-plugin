@@ -105,5 +105,5 @@ function log_backtrace(bool $exclude_vendor = true) {
     $ram = str_pad(number_format(memory_get_usage(true) / 1024 / 1024, 1), 6, " ", STR_PAD_LEFT);
     $file = trim(get_backtrace($exclude_vendor)[2]);
     $file = str_replace(base_path(), '', $file);
-    echo ("Backtrace $ram MB  $file\n");
+    echo("Backtrace $ram MB  $file\n");
 }

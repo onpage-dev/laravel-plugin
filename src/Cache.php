@@ -28,16 +28,19 @@ class Cache {
         }
     }
 
-    static function nameToResource(string $name) :? Models\Resource {
+    static function nameToResource(string $name) : ? Models\Resource {
         return @self::$name_to_resource[$name];
     }
-    static function idToResource(string $id) :? Models\Resource {
+
+    static function idToResource(string $id) : ? Models\Resource {
         return @self::$id_to_resource[$id];
     }
-    static function idToField(string $id) :? Models\Field {
+
+    static function idToField(string $id) : ? Models\Field {
         return @self::$id_to_field[$id];
     }
-    static function nameToField(int $resource_id, string $name) :? Models\Field {
+
+    static function nameToField(int $resource_id, string $name) : ? Models\Field {
         return @self::$name_to_field["$resource_id-$name"];
     }
 }
