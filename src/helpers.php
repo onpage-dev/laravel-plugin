@@ -45,7 +45,7 @@ function generate_model_file(object $res) {
             $rel_class = Models\Resource::find($f->rel_res_id)->name;
             $rel_class = to_camel_case($rel_class);
             $code .= "  function $f->name() {\n";
-            $code .= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id');\n";
+            $code .= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id')->wherePivot('field_id', $f->id);\n";
             $code .= "  }\n";
         }
     }

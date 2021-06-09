@@ -36,10 +36,6 @@ class Import extends Command {
 
     public function handle() {
         $this->loadSnapshot();
-        if ($this->getLastToken() == $this->current_token && !$this->option('anyway')) {
-            $this->comment("No updates found, use --anyway to re-import the last snapshot available");
-            return null;
-        }
         
         $this->comment("Computing changes...");
         $this->computeAllChanges();
@@ -125,6 +121,12 @@ class Import extends Command {
             });
             $this->current_token = $info->token;
 
+            if ($this->getLastToken() == $this->current_token && !$this->option('anyway')) {
+                $this->comment("No updates found, use --anyway to re-import the last snapshot available");
+                exit;
+            }
+
+
             $this->comment('Downloading snapshot...');
             $this->snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
                 throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
@@ -169,12 +171,14 @@ class Import extends Command {
             // echo "tids...\n";
             $tids = collect($insert)->pluck('thing_id')->unique();
             // echo "deleting...\n";
+            \DB::beginTransaction();
             Models\Value::whereIn('thing_id', $tids)->delete();
             foreach (array_chunk($insert, 100) as $ins) {
                 // echo "insert...\n";
                 Models\Value::insert($ins);
             }
             $insert = [];
+            \DB::commit();
         };
 
         $this->comment("Importing things...");
