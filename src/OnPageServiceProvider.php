@@ -4,20 +4,24 @@ namespace OnPage;
 
 use Illuminate\Support\ServiceProvider;
 
-class OnPageServiceProvider extends ServiceProvider {
-    public function register() {
+class OnPageServiceProvider extends ServiceProvider
+{
+    public function register()
+    {
     }
 
-    public function boot() {
+    public function boot()
+    {
         $this->publishes([
-            __DIR__.'/../config/onpage.php' => config_path('onpage.php'),
+            __DIR__ . '/../config/onpage.php' => config_path('onpage.php'),
         ]);
 
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
         $this->commands([
             Import::class,
-            Rollback::class
+            Rollback::class,
+            Test::class,
         ]);
 
         Cache::refresh();

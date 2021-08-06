@@ -5,7 +5,8 @@ namespace OnPage;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
-class Import extends Command {
+class Import extends Command
+{
     protected $signature = 'onpage:import {snapshot_file?} {--force} {--anyway}';
     protected $danger = false;
     protected $description = 'Import data from On Page';
@@ -14,19 +15,22 @@ class Import extends Command {
     private $changes = [];
     private $field_key_to_field = [];
 
-    function getLastToken() : ? string {
+    function getLastToken(): ?string
+    {
         if (!Storage::disk('local')->exists('snapshots/last_token.txt')) {
             return null;
         }
         return Storage::disk('local')->get('snapshots/last_token.txt');
     }
 
-    function finalizeImport() {
+    function finalizeImport()
+    {
         Storage::disk('local')->put('snapshots/last_token.txt', $this->current_token);
         Storage::disk('local')->put("snapshots/$this->current_token", json_encode($this->snapshot));
     }
 
-    function createBar($count) {
+    function createBar($count)
+    {
         $bar = $this->output->createProgressBar($count);
         $bar->setBarWidth(1000);
         $bar->setFormat('%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
@@ -34,9 +38,10 @@ class Import extends Command {
         return $bar;
     }
 
-    public function handle() {
+    public function handle()
+    {
         $this->loadSnapshot();
-        
+
         $this->comment("Computing changes...");
         $this->computeAllChanges();
         if (!$this->option('force') && $this->danger) {
@@ -45,18 +50,21 @@ class Import extends Command {
                 return null;
             }
         }
-        
+
         $this->comment("Importing project {$this->snapshot->label}");
         $this->importSchema(Models\Resource::class, [
             'schema_id',
             'name',
             'label',
+            'labels',
         ]);
         $this->importSchema(Models\Field::class, [
             'resource_id',
             'name',
             'type',
             'label',
+            'labels',
+            'opts',
             'is_multiple',
             'is_translatable',
             'rel_res_id',
@@ -74,13 +82,15 @@ class Import extends Command {
         $this->comment("Snapshot saved.");
     }
 
-    function generateModels() {
+    function generateModels()
+    {
         foreach ($this->snapshot->resources as $res) {
             generate_model_file($res);
         }
     }
 
-    function computeAllChanges() {
+    function computeAllChanges()
+    {
         $resources = collect($this->snapshot->resources);
         $this->computeChanges(
             Models\Resource::class,
@@ -106,11 +116,12 @@ class Import extends Command {
         $this->computeChanges(
             Models\Thing::class,
             $things,
-            [ ]
+            []
         );
     }
 
-    function loadSnapshot() {
+    function loadSnapshot()
+    {
         $snapshot_file = $this->argument('snapshot_file');
         if (!$snapshot_file) {
             $company = config('onpage.company');
@@ -138,7 +149,8 @@ class Import extends Command {
         }
     }
 
-    function importSchema(string $model, array $fields) {
+    function importSchema(string $model, array $fields)
+    {
         $model_name = collect(explode('\\', $model))->last();
         $changes = $this->changes[$model_name];
 
@@ -165,7 +177,8 @@ class Import extends Command {
         }
     }
 
-    function importThings() {
+    function importThings()
+    {
         $insert = [];
         $flush = function () use (&$insert) {
             // echo "tids...\n";
@@ -212,7 +225,8 @@ class Import extends Command {
         }
     }
 
-    function computeThingValues(object $thing, array &$insert) {
+    function computeThingValues(object $thing, array &$insert)
+    {
         foreach ($thing->fields as $field_key => $values) {
             $field = null;
             $lang = null;
@@ -245,7 +259,8 @@ class Import extends Command {
         }
     }
 
-    function importRelations() {
+    function importRelations()
+    {
         $things = $this->changes['Thing']->items;
 
         $this->comment('Importing relations...');
@@ -278,11 +293,12 @@ class Import extends Command {
         echo "\n";
     }
 
-    function computeChanges($model, $objects, $check_columns) {
+    function computeChanges($model, $objects, $check_columns)
+    {
         $model_name = collect(explode('\\', $model))->last();
         $existing_objects = $model::withoutGlobalScopes()->get();
-        [$objects_to_delete,$objects_to_add,$objects_to_update] = $this->compareCollections($model, $check_columns, $objects, $existing_objects);
-        
+        [$objects_to_delete, $objects_to_add, $objects_to_update] = $this->compareCollections($model, $check_columns, $objects, $existing_objects);
+
         if (count($objects_to_add) > 0) {
             $this->comment(count($objects_to_add) . " new {$model_name}s will be added.");
         }
@@ -323,7 +339,7 @@ class Import extends Command {
                 $this->comment(count($objects_to_delete) . " {$model_name}s will be removed.");
             }
         }
-        
+
         $this->changes[$model_name] = (object) [
             'items'  => $objects,
             'del'    => $objects_to_delete,
@@ -332,8 +348,9 @@ class Import extends Command {
         ];
     }
 
-    function compareCollections($model, array $check_columns, $new_items, $existing_items) {
-        [$to_delete,$to_add,$to_update] = [[], [], []];
+    function compareCollections($model, array $check_columns, $new_items, $existing_items)
+    {
+        [$to_delete, $to_add, $to_update] = [[], [], []];
         $existing_items = $existing_items->keyBy('id');
         $new_items = $new_items->keyBy('id');
         foreach ($existing_items as $id => $existing_item) {
@@ -352,7 +369,7 @@ class Import extends Command {
                 }
             }
         }
-        
+
         foreach ($new_items as $id => $item) {
             if (!isset($existing_items[$id])) {
                 $to_add[] = $item;

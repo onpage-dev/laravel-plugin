@@ -19,6 +19,13 @@ Run plugin migrations (we use the `op_*` prefix for our tables)
 php artisan migrate
 ```
 
+### Upgrade
+Run plugin migrations (we use the `op_*` prefix for our tables)
+```bash
+composer upgrade onpage-dev/laravel-plugin
+```
+
+
 
 ## Configuration
 
@@ -81,25 +88,25 @@ php artisan onpage:rollback
 Because the plugin does not actually generate tables and columns corresponding for your data, you will have to use the `whereField` function instead of the `where` clause, which works in the same manner.
 If you have trouble doing some operations, please open an issue explaining your use case.
 ```php
-# If the description field is translatable, the query will run on the current locale language
+// If the description field is translatable, the query will run on the current locale language
 \Data\Products::whereField('code', 'AT-1273')->first();
 
-# By default, the filter will be applied on the current locale language
+// By default, the filter will be applied on the current locale language
 \Data\Products::whereField('description', 'like', '%icecream%')->get();
 
-# You force the filter to search for values in a specific language
+// You force the filter to search for values in a specific language
 \Data\Products::whereField('description.it', 'like', '%gelato%')->paginate();
 
-# To query relations, you can use the standard whereHas laravel function
+// To query relations, you can use the standard whereHas laravel function
 \Data\Products::whereHas('categories', function($q) {
     $q->whereField('is_visible', true);
 })->get();
 
-# If you have a file field, you can query by token and by name
+// If you have a file field, you can query by token and by name
 \Data\Products::whereField('image:name', 'gelato.jpg')->get();
 \Data\Products::whereField('image:token', '79YT34R8798FG7394N')->get();
 
-# For dimension fields (dim2 and dim3) you can use both the x,y,z selectors, or the 0,1,2 selectors
+// For dimension fields (dim2 and dim3) you can use both the x,y,z selectors, or the 0,1,2 selectors
 \Data\Products::whereField('dimension:x', '>', 100)->get();
 // ... is the same as
 \Data\Products::whereField('dimension:0', '>', 100)->get();
@@ -113,13 +120,13 @@ If you need to query data with advanced `where*` clauses, you have to use the ad
 
 ```php
 
-#prefix 'or' for expand the results to another condition
+// Prefix 'or' for expand the results to another condition
 \Data\Products::whereField('name','icecream')->orWhereField('kcal','>',200)->get()
 
-#suffix 'Not' for negative query
+// Suffix 'Not' for negative query
 \Data\Products::whereFieldNot('calories','like','low calorie')->get()     
 
-#suffix 'In' for search in an array of values
+// Suffix 'In' for search in an array of values
 \Data\Products::whereFieldIn('code',['4','8','15','16','23','42'])->get();
 ```
 
@@ -127,12 +134,11 @@ You can also combine them to obtain more advanced clauses, which work in the sam
 
 
 ```php
-orWhereFieldNot(...)     
-orWhereFieldIn(...)   
-whereFieldNotIn(...)  
-orWhereFieldNotIn(...)
+$q->orWhereFieldNot(...)     
+$q->orWhereFieldIn(...)   
+$q->whereFieldNotIn(...)  
+$q->orWhereFieldNotIn(...)
 ```
-
 
 
 
@@ -161,26 +167,56 @@ For these files, the returned value will be an instance of `\OnPage\File::class`
 To get a file or image url use the `->link()` function. The link will point to the original file.
 
 ```php
-# original size
-$product->val('specsheet')->name // icecream-spec.pdf
+// Original size
+$product->val('specsheet')->name // Icecream-spec.pdf
 $product->val('specsheet')->token // R417C0YAM90RF
 $product->val('specsheet')->link() // https://acme-inc.onpage.it/api/storage/R417C0YAM90RF?name=icecream-spec.pdf
 ```
 
 To turn images into a thumbnail add an array of options as shown below:
 ```php
-# maintain proportions width 200px
+// Maintain proportions width 200px
 $product->val('cover_image')->link(['x' => 200])
 
-# maintain proportions height 100px
+// Maintain proportions height 100px
 $product->val('cover_image')->link(['y' => 100])
 
-# crop image to width 200px and height 100px
+// Crop image to width 200px and height 100px
 $product->val('cover_image')->link(['x' => 200, 'y' => 100])
 
-# maintain proportions and contain in a rectangle of width 200px and height 100px 
+// Maintain proportions and contain in a rectangle of width 200px and height 100px 
 $product->val('cover_image')->link(['x' => 200, 'y' => 100, 'contain' => true])
 
-# convert the image to png (default is jpg)
+// Convert the image to png (default is jpg)
 $product->val('cover_image')->link(['x' => 200, 'format' => 'png'])
 ```
+
+
+## Getting Resources and Fields
+
+```php
+
+// Get a resource definition by name:
+$prod_res = \Onpage\resource('prodotti') // Returns \OnPage\Resource::class
+$prod_res->label; // "Prodotti"
+$prod_res->name; // "products"
+$prod_res->labels; // [ 'it' => 'Prodotti', 'en' => 'Products' ]
+
+// Get all fields available for this resource:
+$weight_field = $prod_res->field('weight'); // Returns \OnPage\Field::class or null
+$weight_field->label; // "Peso"
+$weight_field->name; // "weight"
+$weight_field->type; // "real"
+$weight_field->getUnit(); // "kg"
+$weight_field->labels; // [ 'it' => 'Peso', 'en' => 'Weight' ]
+
+// Get all resource fields:
+$prod_res->fields // Collection of \OnPage\Field::class
+
+// Print all fields of the products resource
+foreach($products->fields as $field) {
+  echo "- $field->label (type: $field->type)\n"
+}
+
+
+````
