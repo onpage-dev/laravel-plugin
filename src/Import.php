@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 
 class Import extends Command
 {
-    protected $signature = 'onpage:import {snapshot_file?} {--force} {--anyway}';
+    protected $signature = 'onpage:import {snapshot_file?} {--regenerate-snapshot} {--force} {--anyway}';
     protected $danger = false;
     protected $description = 'Import data from On Page';
     private $current_token;
@@ -47,7 +47,7 @@ class Import extends Command
         if (!$this->option('force') && $this->danger) {
             $confirm = $this->ask('Do you want to proceed? (y/N)');
             if (!in_array(strtolower($confirm), ['y', 'yes'])) {
-                return null;
+                return 1;
             }
         }
 
@@ -126,10 +126,18 @@ class Import extends Command
         if (!$snapshot_file) {
             $company = config('onpage.company');
             $token = config('onpage.token');
-            $this->comment('Getting snapshot info...');
-            $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
-                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
-            });
+            $info = null;
+            if ($this->option('regenerate-snapshot')) {
+                $this->comment('Getting snapshot info...');
+                $info = curl_get("https://$company.onpage.it/api/view/$token/generate-snapshot", function () {
+                    throw new \Exception("Unable to generate snapshot snapshot, please check the token and company name is correct");
+                });
+            } else {
+                $this->comment('Getting snapshot info...');
+                $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
+                    throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+                });
+            }
             $this->current_token = $info->token;
 
             if ($this->getLastToken() == $this->current_token && !$this->option('anyway')) {
