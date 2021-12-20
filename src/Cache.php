@@ -21,7 +21,9 @@ class Cache
 
         try {
             foreach (Models\Resource::with([
-                'fields' => fn (Builder $q) => $q->sorted()
+                'fields' => function (Builder $q) {
+                    $q->sorted();
+                }
             ])->get() as $res) {
                 self::$id_to_resource[$res->id] = $res;
                 self::$name_to_resource[$res->name] = $res;
