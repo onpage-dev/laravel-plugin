@@ -30,7 +30,7 @@ class Field extends OpModel
         'image'    => FileType::class,
     ];
 
-    function scopeSorted(Builder $q) {
+    function scopeSorted($q) {
         return $q->orderBy('order')->orderBy('id');
     }
 

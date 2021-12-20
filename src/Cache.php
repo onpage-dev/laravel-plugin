@@ -2,7 +2,6 @@
 
 namespace OnPage;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class Cache
@@ -21,7 +20,7 @@ class Cache
 
         try {
             foreach (Models\Resource::with([
-                'fields' => function (Builder $q) {
+                'fields' => function ($q) {
                     $q->sorted();
                 }
             ])->get() as $res) {
