@@ -2,6 +2,8 @@
 
 namespace OnPage\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+
 class Field extends OpModel
 {
     protected $table = 'op_fields';
@@ -27,6 +29,10 @@ class Field extends OpModel
         'file'     => FileType::class,
         'image'    => FileType::class,
     ];
+
+    function scopeSorted(Builder $q) {
+        return $q->orderBy('order')->orderBy('id');
+    }
 
     function typeClass()
     {

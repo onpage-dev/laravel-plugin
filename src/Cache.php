@@ -2,6 +2,7 @@
 
 namespace OnPage;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class Cache
@@ -19,7 +20,9 @@ class Cache
         self::$name_to_field = [];
 
         try {
-            foreach (Models\Resource::with('fields')->get() as $res) {
+            foreach (Models\Resource::with([
+                'fields' => fn (Builder $q) => $q->sorted()
+            ])->get() as $res) {
                 self::$id_to_resource[$res->id] = $res;
                 self::$name_to_resource[$res->name] = $res;
 

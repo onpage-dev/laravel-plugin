@@ -3,6 +3,7 @@
 namespace OnPage;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class Import extends Command
@@ -65,6 +66,7 @@ class Import extends Command
             'label',
             'labels',
             'opts',
+            'order',
             'is_multiple',
             'is_translatable',
             'rel_res_id',
@@ -192,27 +194,32 @@ class Import extends Command
             // echo "tids...\n";
             $tids = collect($insert)->pluck('thing_id')->unique();
             // echo "deleting...\n";
-            \DB::beginTransaction();
+            DB::beginTransaction();
             Models\Value::whereIn('thing_id', $tids)->delete();
             foreach (array_chunk($insert, 100) as $ins) {
                 // echo "insert...\n";
                 Models\Value::insert($ins);
             }
             $insert = [];
-            \DB::commit();
+            DB::commit();
         };
 
         $this->comment("Importing things...");
         $changes = $this->changes['Thing'];
-        $existing_tids = Models\Thing::pluck('resource_id', 'id');
+        $existing_tids = Models\Thing::get()->keyBy('id');
         $bar = $this->createBar($changes->items->count());
         foreach ($changes->items as $thing) {
             if (!isset($existing_tids[$thing->id])) {
                 Models\Thing::create(collect($thing)->only([
                     'id',
+                    'order',
                     'resource_id',
                 ])->all());
-                $existing_tids[$thing->id] = $thing->resource_id;
+                $existing_tids[$thing->id] = $thing->order;
+            } elseif ($existing_tids[$thing->id]->order !== $thing->order) {
+                $existing_tids[$thing->id]->update([
+                    'order' => $thing->order,
+                ]);
             }
 
             $this->computeThingValues($thing, $insert);

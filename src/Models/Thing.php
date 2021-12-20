@@ -16,6 +16,10 @@ class Thing extends OpModel
         });
     }
 
+    function scopeSorted(Builder $q) {
+        return $q->orderBy('order')->orderBy('id');
+    }
+    
     function resource()
     {
         return $this->belongsTo(Resource::class, 'resource_id', 'id');

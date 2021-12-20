@@ -2,8 +2,6 @@
   "name": "onpage-dev/laravel-plugin",
   "description": "A demo package",
   "type": "library",
-  "require": {
-  },
   "autoload": {
     "psr-4": {
       "OnPage\\": "src"
@@ -18,5 +16,8 @@
         "OnPage\\OnPageServiceProvider"
       ]
     }
+  },
+  "require-dev": {
+    "laravel/laravel": "^8.6"
   }
 }
