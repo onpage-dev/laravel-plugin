@@ -206,7 +206,7 @@ class Import extends Command
 
         $this->comment("Importing things...");
         $changes = $this->changes['Thing'];
-        $existing_tids = Models\Thing::get()->keyBy('id');
+        $existing_tids = Models\Thing::query()->withoutGlobalScopes()->get()->keyBy('id');
         $bar = $this->createBar($changes->items->count());
         foreach ($changes->items as $thing) {
             if (!isset($existing_tids[$thing->id])) {
