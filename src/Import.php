@@ -143,7 +143,7 @@ class Import extends Command
             $this->current_token = $info->token;
 
             if ($this->getLastToken() == $this->current_token && !$this->option('anyway')) {
-                $this->comment("No updates found, use --anyway to re-import the last snapshot available");
+                $this->comment("No updates found, use --anyway to re-import the latest snapshot available");
                 exit;
             }
 
@@ -196,10 +196,7 @@ class Import extends Command
             // echo "deleting...\n";
             DB::beginTransaction();
             Models\Value::whereIn('thing_id', $tids)->delete();
-            foreach (array_chunk($insert, 100) as $ins) {
-                // echo "insert...\n";
-                Models\Value::insert($ins);
-            }
+            Models\Value::insert($insert);
             $insert = [];
             DB::commit();
         };
@@ -223,7 +220,9 @@ class Import extends Command
             }
 
             $this->computeThingValues($thing, $insert);
-            $flush();
+            if (count($insert) > 5000) {
+                $flush();
+            }
 
             $bar->advance();
         }
@@ -297,7 +296,7 @@ class Import extends Command
 
             // Delete and reinsert relations
             Models\Relation::whereIn('thing_from_id', $chunk->pluck('id'))->delete();
-            foreach ($relations_op->chunk(500) as $insert_chunk) {
+            foreach ($relations_op->chunk(5000) as $insert_chunk) {
                 Models\Relation::insert($insert_chunk->all());
             }
 
