@@ -47,8 +47,11 @@ function generate_model_file(object $res)
         if ($f->type == 'relation') {
             $rel_class = Models\Resource::find($f->rel_res_id)->name;
             $rel_class = to_camel_case($rel_class);
+            $order_clause = op_major_laravel_version() >= 8 ? "->orderByPivot('id')" : "->orderBy('op_relations.id')";
             $code .= "  function $f->name() {\n";
-            $code .= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id')->wherePivot('field_id', $f->id);\n";
+            $code .= "    return \$this->belongsToMany($rel_class::class, \OnPage\Models\Relation::class,'thing_from_id','thing_to_id')\n";
+            $code .= "      $order_clause\n";
+            $code .= "      ->wherePivot('field_id', $f->id);\n";
             $code .= "  }\n";
         }
     }
@@ -129,4 +132,9 @@ function resource($id): ?Models\Resource
 function resources(): Collection
 {
     return Cache::resources();
+}
+
+function op_major_laravel_version(): int
+{
+    return explode('.', app()->version())[0];
 }
