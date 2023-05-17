@@ -87,7 +87,10 @@ php artisan onpage:rollback
 Because the plugin does not actually generate tables and columns corresponding for your data, you will have to use the `whereField` function instead of the `where` clause, which works in the same manner.
 If you have trouble doing some operations, please open an issue explaining your use case.
 ```php
-// If the description field is translatable, the query will run on the current locale language
+// Search by native fields (id, created_at, updated_at, order)
+\Data\Products::where('id', 123123)->first();
+
+// For other fields, use the `whereField` function
 \Data\Products::whereField('code', 'AT-1273')->first();
 
 // By default, the filter will be applied on the current locale language
@@ -147,6 +150,12 @@ To access field data for a record, you need to use the `->val($field_name, $lang
 The `$lang` is set to use the current default language.
 Examples:
 ```php
+// Native field values:
+$product->id // 123123
+$product->created_at // 2022-01-01 00:00:00
+$product->updated_at // 2023-02-03 01:30:00
+
+// Field values:
 $product->val('name') // Icecream
 $product->val('name', 'it') // Gelato
 ```
