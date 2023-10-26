@@ -196,7 +196,7 @@ $product->val('cover_image')->link(['x' => 200, 'y' => 100])
 $product->val('cover_image')->link(['x' => 200, 'y' => 100, 'contain' => true])
 
 // Convert the image to png (default is jpg)
-$product->val('cover_image')->link(['x' => 200, 'format' => 'png'])
+$product->val('cover_image')->link(['x' => 200, 'ext' => 'png'])
 ```
 
 
