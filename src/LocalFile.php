@@ -1,7 +1,7 @@
 <?php
 namespace OnPage;
 
-class File {
+class LocalFile {
     public $name;
     public $token;
 

@@ -233,7 +233,7 @@ class FileType implements FieldType
 
     static function getValue(Value $value)
     {
-        return new \OnPage\File([
+        return new \OnPage\LocalFile([
             'name'  => $value->value_txt,
             'token' => $value->value_token,
         ]);
