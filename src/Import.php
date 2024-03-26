@@ -185,9 +185,21 @@ class Import extends Command
         $this->comment("Importing {$model_name}s...");
         $bar = $this->createBar($changes->items->count());
         foreach ($changes->items as $item) {
-            $model::withoutGlobalScopes()->updateOrCreate([
+            $new_item = $model::withoutGlobalScopes()->updateOrCreate([
                 'id' => $item->id,
             ], collect($item)->only($fields)->all());
+
+            if ($model == Models\FieldFolders::class) {
+                $new_item->fields()->detach();
+
+                foreach ($item->form_fields as $field_id) {
+                    $new_item->fields()->attach([$field_id => ["type" => "form_fields"]]);
+                }
+
+                foreach ($item->arrow_fields as $field_id) {
+                    $new_item->fields()->attach([$field_id => ["type" => "arrow_fields"]]);
+                }
+            }
             $bar->advance();
         }
         $bar->finish();
