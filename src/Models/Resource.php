@@ -19,6 +19,11 @@ class Resource extends OpModel
         return $this->hasMany(Field::class, 'resource_id');
     }
 
+    public function field_folders()
+    {
+        return $this->hasMany(FieldFolders::class);
+    }
+
     public function values()
     {
         return $this->hasManyThrough(Value::class, Thing::class);
@@ -37,10 +42,12 @@ class Resource extends OpModel
     {
         return \OnPage\Cache::idToResource($id);
     }
+
     function getLabelsAttribute($labels): array
     {
         return json_decode($labels ?? '{}', true);
     }
+
     function setLabelsAttribute($labels)
     {
         if (!is_array($labels) && !is_object($labels)) {
