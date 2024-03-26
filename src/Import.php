@@ -59,6 +59,14 @@ class Import extends Command
             'label',
             'labels',
         ]);
+
+        $this->importSchema(Models\FieldFolders::class, [
+            'resource_id',
+            'label',
+            'type',
+            'labels',
+        ]);
+
         $this->importSchema(Models\Field::class, [
             'resource_id',
             'name',
@@ -99,6 +107,16 @@ class Import extends Command
             $resources,
             [
                 'name',
+            ]
+        );
+
+        $field_folders = $resources->pluck('field_folders')->collapse();
+        $this->computeChanges(
+            Models\FieldFolders::class,
+            $field_folders,
+            [
+                'label',
+                'fids'
             ]
         );
 
