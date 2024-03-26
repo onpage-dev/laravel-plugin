@@ -136,7 +136,9 @@ class Import extends Command
         $this->computeChanges(
             Models\Thing::class,
             $things,
-            []
+            [
+                'default_folder_id'
+            ]
         );
     }
 
@@ -240,12 +242,17 @@ class Import extends Command
                 Models\Thing::create(collect($thing)->only([
                     'id',
                     'order',
+                    'default_folder_id',
                     'resource_id',
                 ])->all());
                 $existing_tids[$thing->id] = $thing->order;
-            } elseif ($existing_tids[$thing->id]->order !== $thing->order) {
+            } elseif (
+                $existing_tids[$thing->id]->order !== $thing->order ||
+                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id
+                ) {
                 $existing_tids[$thing->id]->update([
                     'order' => $thing->order,
+                    'default_folder_id' => $thing->default_folder_id
                 ]);
             }
 
