@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('op_field_folders', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('resource_id');
-            $table->string('name')->index();
-            $table->string('type');
+            $table->string('label')->index();
             $table->string('labels', 500);
             $table->foreign('resource_id')->references('id')->on('op_resources')->onDelete('cascade');
         });
@@ -34,7 +33,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('op_field_folders');
+
         Schema::dropIfExists('op_field_folder');
+        Schema::dropIfExists('op_field_folders');
     }
 };
