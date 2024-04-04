@@ -228,3 +228,20 @@ foreach($products->fields as $field) {
 
 
 ````
+
+
+## Using Fields Folders
+
+```php
+
+$prod_res = \Onpage\resource('prodotti') // Returns \OnPage\Resource::class
+
+$prod_res->field_folders; // Collection of \OnPage\FieldFolders::class
+
+$field_folder = $prod_res->field_folders->first() // get the first field folder
+$field_folder->label; // "Folder1"
+
+$field_folder->fields; // Collection of \OnPage\Field::class
+
+$prod_res->things->first()->default_folder; // Get the default folder for the thing or null
+````
