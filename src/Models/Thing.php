@@ -16,10 +16,11 @@ class Thing extends OpModel
         });
     }
 
-    function scopeSorted(Builder $q) {
+    function scopeSorted(Builder $q)
+    {
         return $q->orderBy('order')->orderBy('id');
     }
-    
+
     function resource()
     {
         return $this->belongsTo(Resource::class, 'resource_id', 'id');
@@ -43,6 +44,11 @@ class Thing extends OpModel
     function relatedThings()
     {
         return $this->belongsToMany(Thing::class, Relation::class, 'thing_from_id', 'thing_to_id');
+    }
+
+    function defaultFolder()
+    {
+        return $this->belongsTo(FieldFolders::class, 'default_folder_id');
     }
 
     function getValues(string $lang = null): array

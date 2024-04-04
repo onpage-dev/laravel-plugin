@@ -59,6 +59,14 @@ class Import extends Command
             'label',
             'labels',
         ]);
+
+        $this->importSchema(Models\FieldFolders::class, [
+            'resource_id',
+            'label',
+            'type',
+            'labels',
+        ]);
+
         $this->importSchema(Models\Field::class, [
             'resource_id',
             'name',
@@ -102,6 +110,16 @@ class Import extends Command
             ]
         );
 
+        $field_folders = $resources->pluck('field_folders')->collapse();
+        $this->computeChanges(
+            Models\FieldFolders::class,
+            $field_folders,
+            [
+                'label',
+                'fids'
+            ]
+        );
+
         $fields = $resources->pluck('fields')->collapse();
         $this->computeChanges(
             Models\Field::class,
@@ -118,7 +136,9 @@ class Import extends Command
         $this->computeChanges(
             Models\Thing::class,
             $things,
-            []
+            [
+                'default_folder_id'
+            ]
         );
     }
 
@@ -167,9 +187,21 @@ class Import extends Command
         $this->comment("Importing {$model_name}s...");
         $bar = $this->createBar($changes->items->count());
         foreach ($changes->items as $item) {
-            $model::withoutGlobalScopes()->updateOrCreate([
+            $new_item = $model::withoutGlobalScopes()->updateOrCreate([
                 'id' => $item->id,
             ], collect($item)->only($fields)->all());
+
+            if ($model == Models\FieldFolders::class) {
+                $new_item->fields()->detach();
+
+                foreach ($item->form_fields as $field_id) {
+                    $new_item->fields()->attach([$field_id => ["type" => "form_fields"]]);
+                }
+
+                foreach ($item->arrow_fields as $field_id) {
+                    $new_item->fields()->attach([$field_id => ["type" => "arrow_fields"]]);
+                }
+            }
             $bar->advance();
         }
         $bar->finish();
@@ -210,12 +242,17 @@ class Import extends Command
                 Models\Thing::create(collect($thing)->only([
                     'id',
                     'order',
+                    'default_folder_id',
                     'resource_id',
                 ])->all());
                 $existing_tids[$thing->id] = $thing->order;
-            } elseif ($existing_tids[$thing->id]->order !== $thing->order) {
+            } elseif (
+                $existing_tids[$thing->id]->order !== $thing->order ||
+                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id
+                ) {
                 $existing_tids[$thing->id]->update([
                     'order' => $thing->order,
+                    'default_folder_id' => $thing->default_folder_id
                 ]);
             }
 
