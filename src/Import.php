@@ -73,6 +73,7 @@ class Import extends Command
             'type',
             'label',
             'labels',
+            'unit',
             'opts',
             'order',
             'is_multiple',

@@ -30,7 +30,8 @@ class Field extends OpModel
         'image'    => FileType::class,
     ];
 
-    function scopeSorted($q) {
+    function scopeSorted($q)
+    {
         return $q->orderBy('order')->orderBy('id');
     }
 
@@ -85,7 +86,7 @@ class Field extends OpModel
 
     function getUnit(): ?string
     {
-        return $this->opts->unit ?? null;
+        return $this->unit ?? null;
     }
 }
 
