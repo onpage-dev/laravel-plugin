@@ -76,12 +76,26 @@ class Field extends OpModel
     {
         return json_decode($labels ?? '{}', true);
     }
+
     function setLabelsAttribute($labels)
     {
         if (!is_array($labels) && !is_object($labels)) {
             throw new \Exception("Invalid labels");
         }
         $this->attributes['labels'] = json_encode($labels);
+    }
+
+    function setDescriptionsAttribute($descriptions)
+    {
+        if (!is_array($descriptions) && !is_object($descriptions)) {
+            throw new \Exception("Invalid descriptions");
+        }
+        $this->attributes['descriptions'] = json_encode($descriptions);
+    }
+
+    function getDescriptionsAttribute($description): array
+    {
+        return json_decode($descriptions ?? '{}', true);
     }
 
     function getUnit(): ?string

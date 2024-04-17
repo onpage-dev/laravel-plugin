@@ -73,6 +73,8 @@ class Import extends Command
             'type',
             'label',
             'labels',
+            'description',
+            'descriptions',
             'unit',
             'opts',
             'order',
@@ -250,7 +252,7 @@ class Import extends Command
             } elseif (
                 $existing_tids[$thing->id]->order !== $thing->order ||
                 $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id
-                ) {
+            ) {
                 $existing_tids[$thing->id]->update([
                     'order' => $thing->order,
                     'default_folder_id' => $thing->default_folder_id
