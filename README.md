@@ -217,6 +217,9 @@ $weight_field->name; // "weight"
 $weight_field->type; // "real"
 $weight_field->getUnit(); // "kg"
 $weight_field->labels; // [ 'it' => 'Peso', 'en' => 'Weight' ]
+$weight_field->descriptions; // 'Rappresenta il peso espresso in kg'
+$weight_field->description; // [ 'it' => 'Rappresenta il peso espresso in kg', 'en' => 'Represents the weight expressed in kg' ]
+
 
 // Get all resource fields:
 $prod_res->fields // Collection of \OnPage\Field::class
