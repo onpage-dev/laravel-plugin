@@ -154,12 +154,12 @@ class Import extends Command
             $info = null;
             if ($this->option('regenerate-snapshot')) {
                 $this->comment('Getting snapshot info...');
-                $info = curl_get("https://$company.onpage.it/api/view/$token/generate-snapshot", function () {
+                $info = curl_get("https://api.onpage.it/view/$token/generate-snapshot", function () {
                     throw new \Exception("Unable to generate snapshot snapshot, please check the token and company name is correct");
                 });
             } else {
                 $this->comment('Getting snapshot info...');
-                $info = curl_get("https://$company.onpage.it/api/view/$token/dist", function () {
+                $info = curl_get("https://api.onpage.it/view/$token/dist", function () {
                     throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
                 });
             }
@@ -172,7 +172,7 @@ class Import extends Command
 
 
             $this->comment('Downloading snapshot...');
-            $this->snapshot = curl_get("https://$company.onpage.it/api/storage/{$this->current_token}", function () {
+            $this->snapshot = curl_get("https://storage.onpage.it/{$this->current_token}", function () {
                 throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
             });
         } else {
