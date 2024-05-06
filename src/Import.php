@@ -60,13 +60,6 @@ class Import extends Command
             'labels',
         ]);
 
-        $this->importSchema(Models\FieldFolders::class, [
-            'resource_id',
-            'label',
-            'type',
-            'labels',
-        ]);
-
         $this->importSchema(Models\Field::class, [
             'resource_id',
             'name',
@@ -81,6 +74,13 @@ class Import extends Command
             'is_multiple',
             'is_translatable',
             'rel_res_id',
+        ]);
+
+        $this->importSchema(Models\FieldFolders::class, [
+            'resource_id',
+            'label',
+            'type',
+            'labels',
         ]);
 
         // Refresh resource cache
