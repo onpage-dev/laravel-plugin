@@ -149,7 +149,6 @@ class Import extends Command
     {
         $snapshot_file = $this->argument('snapshot_file');
         if (!$snapshot_file) {
-            $company = config('onpage.company');
             $token = config('onpage.token');
             $info = null;
             if ($this->option('regenerate-snapshot')) {

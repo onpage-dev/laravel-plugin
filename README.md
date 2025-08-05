@@ -32,7 +32,6 @@ composer upgrade onpage-dev/laravel-plugin
 2. Copy the Snapshot Generator API token
 3. Add the following to your `.env` file:
     ```bash
-    ONPAGE_COMPANY=acme-inc
     ONPAGE_TOKEN=SNAPSHOT-GENERATOR-API-TOKEN
     ```
 
