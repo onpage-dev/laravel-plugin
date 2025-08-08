@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('op_field_folders', function (Blueprint $table) {
-            $table->string('label', 1000)->change();
+            $table->string('labels', 1000)->change();
         });
     }
 
