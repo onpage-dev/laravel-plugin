@@ -17,7 +17,7 @@ class LocalFile {
 
     function link(array $opts = []) : string {
         $suffix = '';
-        if ($this->isImage() && (isset($opts['x']) || isset($opts['y']))) {
+        if (isset($opts['x']) || isset($opts['y'])) {
             $suffix .= @".{$opts['x']}x{$opts['y']}";
 
             if (isset($opts['contain'])) {
