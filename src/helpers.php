@@ -80,9 +80,14 @@ function op_url(string $token, string $name = null): string
 {
     $url = "https://storage.onpage.it/$token";
     if ($name) {
-        $url .= '?' . http_build_query([
-            'name' => $name,
-        ]);
+        // Make sure the name has the correct extension
+        $name_ext = pathinfo($name, PATHINFO_EXTENSION);
+        $token_ext = pathinfo($token, PATHINFO_EXTENSION);
+        if ($token_ext && $name_ext !== $token_ext) {
+            // Replace the extension with the token extension
+            $name = substr($name, 0, -strlen($name_ext)) . $token_ext;
+        }
+        $url .= '/' . urlencode($name);
     }
     return $url;
 }
