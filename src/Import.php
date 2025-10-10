@@ -153,13 +153,13 @@ class Import extends Command
             $info = null;
             if ($this->option('regenerate-snapshot')) {
                 $this->comment('Getting snapshot info...');
-                $info = curl_get("https://api.onpage.it/view/$token/generate-snapshot", function () {
-                    throw new \Exception("Unable to generate snapshot snapshot, please check the token and company name is correct");
+                $info = curl_get("https://api.onpage.it/view/$token/generate-snapshot", function ($ch, $httpCode, $errorMessage) {
+                    throw new \Exception("Unable to generate snapshot: HTTP $httpCode - $errorMessage. Please check the token and company name is correct.");
                 });
             } else {
                 $this->comment('Getting snapshot info...');
-                $info = curl_get("https://api.onpage.it/view/$token/dist", function () {
-                    throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+                $info = curl_get("https://api.onpage.it/view/$token/dist", function ($ch, $httpCode, $errorMessage) {
+                    throw new \Exception("Unable to get snapshot information: HTTP $httpCode - $errorMessage. Please check the token and company name is correct.");
                 });
             }
             $this->current_token = $info->token;
@@ -171,8 +171,8 @@ class Import extends Command
 
 
             $this->comment('Downloading snapshot...');
-            $this->snapshot = curl_get("https://storage.onpage.it/{$this->current_token}", function () {
-                throw new \Exception("Unable to get snapshot information, please check the token and company name is correct");
+            $this->snapshot = curl_get("https://storage.onpage.it/{$this->current_token}", function ($ch, $httpCode, $errorMessage) {
+                throw new \Exception("Unable to download snapshot: HTTP $httpCode - $errorMessage. Please check the token and company name is correct.");
             });
         } else {
             $this->comment("Loading snapshot...");

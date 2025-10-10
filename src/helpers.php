@@ -9,13 +9,40 @@ function curl_get($url, callable $on_error): object
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HEADER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+
     $result = curl_exec($ch);
-    if (curl_errno($ch) || !$result) {
-        $on_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if (curl_errno($ch)) {
+        $on_error($ch, $httpCode, curl_error($ch));
+        curl_close($ch);
+        return (object) [];
     }
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+        $on_error($ch, $httpCode, "HTTP Error: $httpCode");
+        curl_close($ch);
+        return (object) [];
+    }
+
+    if (!$result) {
+        $on_error($ch, $httpCode, "Empty response");
+        curl_close($ch);
+        return (object) [];
+    }
+
     curl_close($ch);
 
-    return \json_decode($result);
+    $decoded = \json_decode($result);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $on_error($ch, $httpCode, "JSON decode error: " . json_last_error_msg());
+        return (object) [];
+    }
+
+    return $decoded;
 }
 
 function generate_model_file(object $res)
