@@ -246,15 +246,19 @@ class Import extends Command
                     'order',
                     'default_folder_id',
                     'resource_id',
+                    'created_at',
+                    'updated_at'
                 ])->all());
                 $existing_tids[$thing->id] = $thing->order;
             } elseif (
                 $existing_tids[$thing->id]->order !== $thing->order ||
-                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id
+                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
+                $existing_tids[$thing->id]->updated_at !== $thing->updated_at
             ) {
                 $existing_tids[$thing->id]->update([
                     'order' => $thing->order,
-                    'default_folder_id' => $thing->default_folder_id
+                    'default_folder_id' => $thing->default_folder_id,
+                    'updated_at' => $thing->updated_at
                 ]);
             }
 
