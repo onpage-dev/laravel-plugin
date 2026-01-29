@@ -266,12 +266,16 @@ class Import extends Command
 
             if (isset($things['insert']) && !empty($things['insert'])) {
                 Models\Thing::insert($things['insert']);
-                $this->comment("Inserted ".count($things['insert'])." records -> [".$things['insert'][0]['id'].", ..., ".$things['insert'][count($things['insert'])-1]['id']."]");
+
+                $num_things = count($things['insert']);
+                $this->comment("Inserted $num_things records (new) -> ".visualize_array($things['insert'][0]['id'], $things['insert'][$num_things - 1]['id'], $num_things));
             }
 
             if (isset($things['update']) && !empty($things['update'])) {
                 Models\Thing::upsert($things['update'], [ 'id' ], [ 'order', 'default_folder_id', 'resource_id', 'created_at', 'updated_at' ] );
-                $this->comment("Updated ".count($things['update'])." records -> [".$things['update'][0]['id'].", ..., ".$things['update'][count($things['update'])-1]['id']."]");
+
+                $num_things = count($things['update']);
+                $this->comment("Updated $num_things records (modified) -> ".visualize_array($things['update'][0]['id'], $things['update'][$num_things - 1]['id'], $num_things));
             }
 
             foreach ($chunk as $thing) {

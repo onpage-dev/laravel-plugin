@@ -169,3 +169,15 @@ function op_major_laravel_version(): int
 {
     return explode('.', app()->version())[0];
 }
+
+function visualize_array(int $min, int $max, int $num_elements): string
+{
+    if ($num_elements === 1) {
+        $string = "[$min]";
+    } else if ($num_elements === 2) {
+        $string = "[$min, $max]";
+    } else {
+        $string = "[$min, ..., $max]";
+    }
+    return $string;
+}
