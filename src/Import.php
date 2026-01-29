@@ -239,43 +239,46 @@ class Import extends Command
         $changes = $this->changes['Thing'];
         $existing_tids = Models\Thing::query()->withoutGlobalScopes()->get()->keyBy('id');
         $bar = $this->createBar($changes->items->count());
-        foreach ($changes->items as $thing) {
-            if (!isset($existing_tids[$thing->id])) {
-                Models\Thing::create(collect($thing)->only([
-                    'id',
-                    'order',
-                    'default_folder_id',
-                    'resource_id',
-                    'created_at',
-                    'updated_at'
-                ])->all());
-                $existing_tids[$thing->id] = $thing->order;
-            } elseif (
-                $existing_tids[$thing->id]->order !== $thing->order ||
-                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
-                $existing_tids[$thing->id]->updated_at !== $thing->updated_at
-            ) {
-                $existing_tids[$thing->id]->update([
-                    'order' => $thing->order,
-                    'default_folder_id' => $thing->default_folder_id,
-                    'updated_at' => $thing->updated_at
-                ]);
+
+        $things = [];
+        $chunk_size = 1000;
+        foreach ($changes->items->chunk($chunk_size) as $chunk) {
+            foreach ($chunk as $thing) {
+                $thing_collection = collect($thing)->only(['id', 'order','default_folder_id','resource_id','created_at','updated_at'])->all();
+
+                if (!isset($existing_tids[$thing->id])) {
+                    $things['insert'][] = $thing_collection;
+                    $this->comment("Remote thing {$thing->id} not found from local DB -> Added to the list for 'insert'");
+                } else if (
+                    $existing_tids[$thing->id]->order !== $thing->order ||
+                    $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
+                    $existing_tids[$thing->id]->updated_at !== $thing->updated_at
+                ) {
+                    $things['update'][] = $thing_collection;
+                    $this->comment("Remote thing {$thing->id} found from local DB -> Added to the list for 'update'");
+                }
             }
 
-            $this->computeThingValues($thing, $insert);
-            if (count($insert) > 5000) {
-                $flush();
+            if (isset($things['insert']) && !empty($things['insert'])) {
+                Models\Thing::insert($things['insert']);
+                $this->comment("Inserted ".count($things['insert'])." records -> [".$things['insert'][0]['id'].", ..., ".$things['insert'][count($things['insert'])-1]['id']."]");
             }
 
-            $bar->advance();
+            if (isset($things['update']) && !empty($things['update'])) {
+                Models\Thing::upsert($things['update'], [ 'id' ]/*, [ 'order', 'default_folder_id', 'updated_at' ]*/ );
+                $this->comment("Updated ".count($things['update'])." records -> [".$things['update'][0]['id'].", ..., ".$things['update'][count($things['update'])-1]['id']."]");
+            }
+
+            $things = [];
         }
+
         $flush();
         $bar->finish();
         echo "\n";
 
         if (count($changes->del)) {
             $this->comment('Deleting old things...');
-            foreach (array_chunk($changes->del, 1000) as $chunk) {
+            foreach (array_chunk($changes->del, $chunk_size) as $chunk) {
                 $ids = collect($chunk)->pluck('id');
                 Models\Thing::whereIn('id', $ids)->delete();
             }
