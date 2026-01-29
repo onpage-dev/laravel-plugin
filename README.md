@@ -115,6 +115,10 @@ If you have trouble doing some operations, please open an issue explaining your 
 // If you have to filter on a time basis
 \Data\Products::where('created_at', '>', '2026-01-28 12:30:00')
 \Data\Products::where('updated_at', '>=', '2026-01-26 00:00:00')->where('updated_at', '<=', '2026-01-30 00:00:00')
+
+// Sorting elements
+\Data\Products::orderBy('updated_at', 'DESC')
+\Data\Products::whereField('description', 'like', '%hummer%')->orderBy('updated_at', 'ASC')
 ```
 
 
