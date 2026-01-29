@@ -118,7 +118,7 @@ If you have trouble doing some operations, please open an issue explaining your 
 
 // Sorting elements
 \Data\Products::orderBy('updated_at', 'DESC')
-\Data\Products::whereField('description', 'like', '%hummer%')->orderBy('updated_at', 'ASC')
+\Data\Products::whereField('description', 'like', '%hummer%')->orderBy('created_at', 'ASC')
 ```
 
 
