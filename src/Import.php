@@ -240,22 +240,27 @@ class Import extends Command
         $existing_tids = Models\Thing::query()->withoutGlobalScopes()->get()->keyBy('id');
         $bar = $this->createBar($changes->items->count());
 
-        $things = [];
         $chunk_size = 1000;
         foreach ($changes->items->chunk($chunk_size) as $chunk) {
+            $things = [];
             foreach ($chunk as $thing) {
-                $thing_collection = collect($thing)->only(['id', 'order','default_folder_id','resource_id','created_at','updated_at'])->all();
+                $thing_assoc = collect($thing)->only([
+                    'id',
+                    'order',
+                    'default_folder_id',
+                    'resource_id',
+                    'created_at',
+                    'updated_at',
+                ])->all();
 
                 if (!isset($existing_tids[$thing->id])) {
-                    $things['insert'][] = $thing_collection;
-                    $this->comment("Remote thing {$thing->id} not found from local DB -> Added to the list for 'insert'");
+                    $things['insert'][] = $thing_assoc;
                 } else if (
                     $existing_tids[$thing->id]->order !== $thing->order ||
                     $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
                     $existing_tids[$thing->id]->updated_at !== $thing->updated_at
                 ) {
-                    $things['update'][] = $thing_collection;
-                    $this->comment("Remote thing {$thing->id} found from local DB -> Added to the list for 'update'");
+                    $things['update'][] = $thing_assoc;
                 }
             }
 
@@ -265,11 +270,18 @@ class Import extends Command
             }
 
             if (isset($things['update']) && !empty($things['update'])) {
-                Models\Thing::upsert($things['update'], [ 'id' ]/*, [ 'order', 'default_folder_id', 'updated_at' ]*/ );
+                Models\Thing::upsert($things['update'], [ 'id' ], [ 'order', 'default_folder_id', 'resource_id', 'created_at', 'updated_at' ] );
                 $this->comment("Updated ".count($things['update'])." records -> [".$things['update'][0]['id'].", ..., ".$things['update'][count($things['update'])-1]['id']."]");
             }
 
-            $things = [];
+            foreach ($chunk as $thing) {
+                $this->computeThingValues($thing, $insert);
+                if (count($insert) > 5000) {
+                    $flush();
+                }
+            }
+
+            $bar->advance();
         }
 
         $flush();
