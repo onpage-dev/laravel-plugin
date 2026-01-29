@@ -103,7 +103,7 @@ function to_camel_case($str)
     return $ret;
 }
 
-function op_url(string $token, string $name = null): string
+function op_url(string $token, ?string $name = null): string
 {
     $url = "https://storage.onpage.it/$token";
     if ($name) {
@@ -119,7 +119,7 @@ function op_url(string $token, string $name = null): string
     return $url;
 }
 
-function op_lang(string $set = null)
+function op_lang(?string $set = null)
 {
     static $current;
     if ($set) {
