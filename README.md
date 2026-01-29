@@ -111,6 +111,10 @@ If you have trouble doing some operations, please open an issue explaining your 
 \Data\Products::whereField('dimension:x', '>', 100)->get();
 // ... is the same as
 \Data\Products::whereField('dimension:0', '>', 100)->get();
+
+// If you have to filter on a time basis
+\Data\Products::where('created_at', '>', '2026-01-28 12:30:00')
+\Data\Products::where('updated_at', '>=', '2026-01-26 00:00:00')->where('updated_at', '<=', '2026-01-30 00:00:00')
 ```
 
 
