@@ -262,6 +262,8 @@ class Import extends Command
                 ) {
                     $things['update'][] = $thing_assoc;
                 }
+
+                $bar->advance();
             }
 
             if (isset($things['insert']) && !empty($things['insert'])) {
@@ -284,8 +286,6 @@ class Import extends Command
                     $flush();
                 }
             }
-
-            $bar->advance();
         }
 
         $flush();
