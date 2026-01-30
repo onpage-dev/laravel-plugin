@@ -103,7 +103,7 @@ function to_camel_case($str)
     return $ret;
 }
 
-function op_url(string $token, string $name = null): string
+function op_url(string $token, ?string $name = null): string
 {
     $url = "https://storage.onpage.it/$token";
     if ($name) {
@@ -119,7 +119,7 @@ function op_url(string $token, string $name = null): string
     return $url;
 }
 
-function op_lang(string $set = null)
+function op_lang(?string $set = null)
 {
     static $current;
     if ($set) {
@@ -168,4 +168,16 @@ function resources(): Collection
 function op_major_laravel_version(): int
 {
     return explode('.', app()->version())[0];
+}
+
+function visualize_array(int $min, int $max, int $num_elements): string
+{
+    if ($num_elements === 1) {
+        $string = "[$min]";
+    } else if ($num_elements === 2) {
+        $string = "[$min, $max]";
+    } else {
+        $string = "[$min, ..., $max]";
+    }
+    return $string;
 }

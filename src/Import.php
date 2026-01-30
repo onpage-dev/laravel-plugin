@@ -239,39 +239,62 @@ class Import extends Command
         $changes = $this->changes['Thing'];
         $existing_tids = Models\Thing::query()->withoutGlobalScopes()->get()->keyBy('id');
         $bar = $this->createBar($changes->items->count());
-        foreach ($changes->items as $thing) {
-            if (!isset($existing_tids[$thing->id])) {
-                Models\Thing::create(collect($thing)->only([
+
+        $chunk_size = 1000;
+        foreach ($changes->items->chunk($chunk_size) as $chunk) {
+            $things = [];
+            foreach ($chunk as $thing) {
+                $thing_assoc = collect($thing)->only([
                     'id',
                     'order',
                     'default_folder_id',
                     'resource_id',
-                ])->all());
-                $existing_tids[$thing->id] = $thing->order;
-            } elseif (
-                $existing_tids[$thing->id]->order !== $thing->order ||
-                $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id
-            ) {
-                $existing_tids[$thing->id]->update([
-                    'order' => $thing->order,
-                    'default_folder_id' => $thing->default_folder_id
-                ]);
+                    'created_at',
+                    'updated_at',
+                ])->all();
+
+                if (!isset($existing_tids[$thing->id])) {
+                    $things['insert'][] = $thing_assoc;
+                } else if (
+                    $existing_tids[$thing->id]->order !== $thing->order ||
+                    $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
+                    $existing_tids[$thing->id]->updated_at !== $thing->updated_at
+                ) {
+                    $things['update'][] = $thing_assoc;
+                }
+
+                $bar->advance();
             }
 
-            $this->computeThingValues($thing, $insert);
-            if (count($insert) > 5000) {
-                $flush();
+            if (isset($things['insert']) && !empty($things['insert'])) {
+                Models\Thing::insert($things['insert']);
+
+                $num_things = count($things['insert']);
+                $this->comment("Inserted $num_things records (new) -> ".visualize_array($things['insert'][0]['id'], $things['insert'][$num_things - 1]['id'], $num_things));
             }
 
-            $bar->advance();
+            if (isset($things['update']) && !empty($things['update'])) {
+                Models\Thing::upsert($things['update'], [ 'id' ], [ 'order', 'default_folder_id', 'resource_id', 'created_at', 'updated_at' ] );
+
+                $num_things = count($things['update']);
+                $this->comment("Updated $num_things records (modified) -> ".visualize_array($things['update'][0]['id'], $things['update'][$num_things - 1]['id'], $num_things));
+            }
+
+            foreach ($chunk as $thing) {
+                $this->computeThingValues($thing, $insert);
+                if (count($insert) > 5000) {
+                    $flush();
+                }
+            }
         }
+
         $flush();
         $bar->finish();
         echo "\n";
 
         if (count($changes->del)) {
             $this->comment('Deleting old things...');
-            foreach (array_chunk($changes->del, 1000) as $chunk) {
+            foreach (array_chunk($changes->del, $chunk_size) as $chunk) {
                 $ids = collect($chunk)->pluck('id');
                 Models\Thing::whereIn('id', $ids)->delete();
             }

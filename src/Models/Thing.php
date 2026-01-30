@@ -51,7 +51,7 @@ class Thing extends OpModel
         return $this->belongsTo(FieldFolders::class, 'default_folder_id');
     }
 
-    function getValues(string $lang = null): array
+    function getValues(?string $lang = null): array
     {
         $values = ['id' => $this->id];
         foreach ($this->fields as $field) {
@@ -72,7 +72,7 @@ class Thing extends OpModel
         return Resource::findFast($this->resource_id);
     }
 
-    function valuesFast(string $field_id, string $lang = null): array
+    function valuesFast(string $field_id, ?string $lang = null): array
     {
         if (!$this->value_map) {
             $this->value_map = [];
@@ -100,7 +100,7 @@ class Thing extends OpModel
         $q->withoutGlobalScope('loaded');
     }
 
-    function val(string $field_name, string $lang = null)
+    function val(string $field_name, ?string $lang = null)
     {
         $field = $this->getResource()->field($field_name);
         if (!$field) {
