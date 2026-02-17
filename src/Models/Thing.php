@@ -144,95 +144,122 @@ class Thing extends OpModel
         return [$field, $subfield, $lang];
     }
 
-    function scopeWhereField($query, string $field_name, $op, $value = null)
+    private function isValueEmpty($value): bool
     {
-        if (is_null($value)) {
-            $value = $op;
-            $op = '=';
-        }
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->whereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
+        return $value === null || $value === '';
+    }
+
+    private function valueScope($field, $lang, ?\Closure $extra = null): \Closure
+    {
+        return function ($q) use ($field, $lang, $extra) {
             $q->where('field_id', $field->id);
             $q->where('lang', $lang);
-            return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });
+            if ($extra) $extra($q);
+        };
+    }
+
+    private function applyWhereField($query, string $field_name, $op, $value, bool $or, bool $not)
+    {
+        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
+
+        if ($op === '=' && $this->isValueEmpty($value)) {
+            $method = $not ? 'whereHas' : 'whereDoesntHave';
+            if ($or) $method = 'or' . ucfirst($method);
+            $query->$method('values', $this->valueScope($field, $lang));
+            return;
+        }
+
+        $method = $not ? 'whereDoesntHave' : 'whereHas';
+        if ($or) $method = 'or' . ucfirst($method);
+        $query->$method('values', $this->valueScope($field, $lang, fn($q) =>
+            $field->typeClass()::filter($q, $op, $value, $subfield)
+        ));
+    }
+
+    private function applyWhereFieldIn($query, string $field_name, array $values, bool $or, bool $not)
+    {
+        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
+        $nonEmpty = array_values(array_filter($values, fn($v) => !$this->isValueEmpty($v)));
+        $hasEmpty = count($values) !== count($nonEmpty);
+
+        if ($not) {
+            if ($hasEmpty) {
+                $method = $or ? 'orWhereHas' : 'whereHas';
+                $query->$method('values', $this->valueScope($field, $lang,
+                    !empty($nonEmpty) ? fn($q) => $field->typeClass()::filterNotIn($q, $nonEmpty, $subfield) : null
+                ));
+                return;
+            }
+            $method = $or ? 'orWhereDoesntHave' : 'whereDoesntHave';
+            $query->$method('values', $this->valueScope($field, $lang, fn($q) =>
+                $field->typeClass()::filterIn($q, $values, $subfield)
+            ));
+            return;
+        }
+
+        if ($hasEmpty && empty($nonEmpty)) {
+            $method = $or ? 'orWhereDoesntHave' : 'whereDoesntHave';
+            $query->$method('values', $this->valueScope($field, $lang));
+            return;
+        }
+
+        if ($hasEmpty) {
+            $wrapper = $or ? 'orWhere' : 'where';
+            $query->$wrapper(function ($q) use ($field, $lang, $nonEmpty, $subfield) {
+                $q->whereHas('values', $this->valueScope($field, $lang, fn($q) =>
+                    $field->typeClass()::filterIn($q, $nonEmpty, $subfield)
+                ))->orWhereDoesntHave('values', $this->valueScope($field, $lang));
+            });
+            return;
+        }
+
+        $method = $or ? 'orWhereHas' : 'whereHas';
+        $query->$method('values', $this->valueScope($field, $lang, fn($q) =>
+            $field->typeClass()::filterIn($q, $values, $subfield)
+        ));
+    }
+
+    function scopeWhereField($query, string $field_name, $op, $value = null)
+    {
+        if (func_num_args() < 4) { $value = $op; $op = '='; }
+        $this->applyWhereField($query, $field_name, $op, $value, or: false, not: false);
     }
 
     function scopeWhereFieldNot($query, string $field_name, $op, $value = null)
     {
-        if (is_null($value)) {
-            $value = $op;
-            $op = '=';
-        }
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->whereDoesntHave('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });
+        if (func_num_args() < 4) { $value = $op; $op = '='; }
+        $this->applyWhereField($query, $field_name, $op, $value, or: false, not: true);
     }
 
-    function scopeOrWhereField($query, string $field_name, $op, $value)
+    function scopeOrWhereField($query, string $field_name, $op, $value = null)
     {
-        if (is_null($value)) {
-            $value = $op;
-            $op = '=';
-        }
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->orWhereHas('values', function ($q) use ($field, $lang, $op, $value, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filter($q, $op, $value, $subfield);
-        });
+        if (func_num_args() < 4) { $value = $op; $op = '='; }
+        $this->applyWhereField($query, $field_name, $op, $value, or: true, not: false);
     }
 
-    function scopeOrWhereFieldNot($query, string $field_name, array $values)
+    function scopeOrWhereFieldNot($query, string $field_name, $op, $value = null)
     {
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filter($q, $values, $subfield);
-        });
+        if (func_num_args() < 4) { $value = $op; $op = '='; }
+        $this->applyWhereField($query, $field_name, $op, $value, or: true, not: true);
     }
 
     function scopeWhereFieldIn($query, string $field_name, $values)
     {
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->whereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filterIn($q, $values, $subfield);
-        });
+        $this->applyWhereFieldIn($query, $field_name, $values, or: false, not: false);
     }
 
     function scopeWhereFieldNotIn($query, string $field_name, array $values)
     {
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->whereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filterIn($q, $values, $subfield);
-        });
+        $this->applyWhereFieldIn($query, $field_name, $values, or: false, not: true);
     }
 
     function scopeOrWhereFieldIn($query, string $field_name, array $values)
     {
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->orWhereHas('values', function ($q) use ($field, $lang, $values, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filterIn($q, $values, $subfield);
-        });
+        $this->applyWhereFieldIn($query, $field_name, $values, or: true, not: false);
     }
 
     function scopeOrWhereFieldNotIn($query, string $field_name, array $values)
     {
-        [$field, $subfield, $lang] = $this->fieldExplode($field_name);
-        $query->orWhereDoesntHave('values', function ($q) use ($field, $lang, $values, $subfield) {
-            $q->where('field_id', $field->id);
-            $q->where('lang', $lang);
-            return $field->typeClass()::filterIn($q, $values, $subfield);
-        });
+        $this->applyWhereFieldIn($query, $field_name, $values, or: true, not: true);
     }
 }

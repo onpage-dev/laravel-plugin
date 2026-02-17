@@ -110,9 +110,11 @@ interface FieldType
 
     static function getValue(Value $value);
 
-    static function filter($q, $op, $value, string $subfield = null);
+    static function filter($q, $op, $value, ?string $subfield = null);
 
-    static function filterIn($q, $values, string $subfield = null);
+    static function filterIn($q, $values, ?string $subfield = null);
+
+    static function filterNotIn($q, $values, ?string $subfield = null);
 }
 
 class StringType implements FieldType
@@ -129,14 +131,19 @@ class StringType implements FieldType
         return $value->value_txt;
     }
 
-    static function filter($q, $op, $value, string $subfield = null)
+    static function filter($q, $op, $value, ?string $subfield = null)
     {
         return $q->where('value_txt', $op, $value);
     }
 
-    static function filterIn($q, $values, string $subfield = null)
+    static function filterIn($q, $values, ?string $subfield = null)
     {
         return $q->whereIn('value_txt', $values);
+    }
+
+    static function filterNotIn($q, $values, ?string $subfield = null)
+    {
+        return $q->whereNotIn('value_txt', $values);
     }
 }
 class NumberType implements FieldType
@@ -153,14 +160,19 @@ class NumberType implements FieldType
         return $value->value_real0;
     }
 
-    static function filter($q, $op, $value, string $subfield = null)
+    static function filter($q, $op, $value, ?string $subfield = null)
     {
         $q->where('value_real0', $op, (float) $value);
     }
 
-    static function filterIn($q, $values, string $subfield = null)
+    static function filterIn($q, $values, ?string $subfield = null)
     {
         return $q->whereIn('value_real0', $values);
+    }
+
+    static function filterNotIn($q, $values, ?string $subfield = null)
+    {
+        return $q->whereNotIn('value_real0', $values);
     }
 }
 class BoolType extends NumberType
@@ -170,14 +182,19 @@ class BoolType extends NumberType
         return (bool) $value->value_real0;
     }
 
-    static function filter($q, $op, $value, string $subfield = null)
+    static function filter($q, $op, $value, ?string $subfield = null)
     {
         $q->where('value_real0', $op, (bool) $value);
     }
 
-    static function filterIn($q, $values, string $subfield = null)
+    static function filterIn($q, $values, ?string $subfield = null)
     {
         return $q->whereIn('value_real0', $values);
+    }
+
+    static function filterNotIn($q, $values, ?string $subfield = null)
+    {
+        return $q->whereNotIn('value_real0', $values);
     }
 }
 class DimType implements FieldType
@@ -200,7 +217,7 @@ class DimType implements FieldType
         ];
     }
 
-    static function filter($q, $op, $value, string $subfield = null)
+    static function filter($q, $op, $value, ?string $subfield = null)
     {
         switch ($subfield) {
             case 'x':
@@ -218,7 +235,7 @@ class DimType implements FieldType
         }
     }
 
-    static function filterIn($q, $values, string $subfield = null)
+    static function filterIn($q, $values, ?string $subfield = null)
     {
         switch ($subfield) {
             case 'x':
@@ -232,6 +249,24 @@ class DimType implements FieldType
             case 'z':
             case '2':
                 $q->whereIn('value_real2', $values);
+                break;
+        }
+    }
+
+    static function filterNotIn($q, $values, ?string $subfield = null)
+    {
+        switch ($subfield) {
+            case 'x':
+            case '0':
+                $q->whereNotIn('value_real0', $values);
+                break;
+            case 'y':
+            case '1':
+                $q->whereNotIn('value_real1', $values);
+                break;
+            case 'z':
+            case '2':
+                $q->whereNotIn('value_real2', $values);
                 break;
         }
     }
@@ -254,7 +289,7 @@ class FileType implements FieldType
         ]);
     }
 
-    static function filter($q, $op, $value, string $subfield = null)
+    static function filter($q, $op, $value, ?string $subfield = null)
     {
         if (!$subfield) {
             $subfield = 'name';
@@ -270,7 +305,7 @@ class FileType implements FieldType
         }
     }
 
-    static function filterIn($q, $values, string $subfield = null)
+    static function filterIn($q, $values, ?string $subfield = null)
     {
         if (!$subfield) {
             $subfield = 'name';
@@ -282,6 +317,22 @@ class FileType implements FieldType
                 break;
             case 'token':
                 $q->whereIn('value_token', $values);
+                break;
+        }
+    }
+
+    static function filterNotIn($q, $values, ?string $subfield = null)
+    {
+        if (!$subfield) {
+            $subfield = 'name';
+        }
+
+        switch ($subfield) {
+            case 'name':
+                $q->whereNotIn('value_txt', $values);
+                break;
+            case 'token':
+                $q->whereNotIn('value_token', $values);
                 break;
         }
     }
