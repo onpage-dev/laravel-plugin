@@ -34,7 +34,10 @@ class Import extends Command
     {
         $bar = $this->output->createProgressBar($count);
         $bar->setBarWidth(1000);
-        $bar->setFormat('%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
+        // Symfony cannot display %estimated% when max steps is 0
+        $bar->setFormat($count > 0
+            ? '%current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%'
+            : '%current%/%max% [%bar%] %percent:3s%% %elapsed:6s% %memory:6s%');
         $bar->start();
         return $bar;
     }
@@ -244,21 +247,21 @@ class Import extends Command
         foreach ($changes->items->chunk($chunk_size) as $chunk) {
             $things = [];
             foreach ($chunk as $thing) {
-                $thing_assoc = collect($thing)->only([
-                    'id',
-                    'order',
-                    'default_folder_id',
-                    'resource_id',
-                    'created_at',
-                    'updated_at',
-                ])->all();
+                $thing_assoc = [
+                    'id' => $thing->id,
+                    'order' => $thing->order ?? null,
+                    'default_folder_id' => $thing->default_folder_id ?? null,
+                    'resource_id' => $thing->resource_id,
+                    'created_at' => $thing->created_at ?? null,
+                    'updated_at' => $thing->updated_at ?? null,
+                ];
 
                 if (!isset($existing_tids[$thing->id])) {
                     $things['insert'][] = $thing_assoc;
                 } else if (
-                    $existing_tids[$thing->id]->order !== $thing->order ||
-                    $existing_tids[$thing->id]->default_folder_id !== $thing->default_folder_id ||
-                    $existing_tids[$thing->id]->updated_at !== $thing->updated_at
+                    $existing_tids[$thing->id]->order !== ($thing->order ?? null) ||
+                    $existing_tids[$thing->id]->default_folder_id !== ($thing->default_folder_id ?? null) ||
+                    $existing_tids[$thing->id]->updated_at !== ($thing->updated_at ?? null)
                 ) {
                     $things['update'][] = $thing_assoc;
                 }
